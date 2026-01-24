@@ -4,11 +4,18 @@ import { env } from "~/env";
 import { ReactNode } from "react";
 import { ThemeProvider } from "next-themes";
 import { Analytics } from "@vercel/analytics/next";
-import { ConvexProvider, ConvexReactClient } from "convex/react";
+import { ConvexReactClient } from "convex/react";
+import { ConvexBetterAuthProvider } from "@convex-dev/better-auth/react";
+import { authClient } from "~/lib/auth-client";
 
 const convex = new ConvexReactClient(env.NEXT_PUBLIC_CONVEX_URL);
 
-const Providers = ({ children }: { children: ReactNode }) => {
+interface ProvidersProps {
+  children: ReactNode;
+  initialToken?: string | null;
+}
+
+const Providers = ({ children, initialToken }: ProvidersProps) => {
   return (
     <ThemeProvider
       enableSystem
@@ -16,10 +23,14 @@ const Providers = ({ children }: { children: ReactNode }) => {
       defaultTheme="dark"
       disableTransitionOnChange
     >
-      <ConvexProvider client={convex}>
+      <ConvexBetterAuthProvider
+        client={convex}
+        authClient={authClient}
+        initialToken={initialToken}
+      >
         {children}
         <Analytics />
-      </ConvexProvider>
+      </ConvexBetterAuthProvider>
     </ThemeProvider>
   );
 };
