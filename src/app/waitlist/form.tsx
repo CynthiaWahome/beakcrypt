@@ -6,8 +6,8 @@ import type { Response } from "./actions";
 import { Input } from "~/components/ui/input";
 import { Button } from "~/components/ui/button";
 import { Check, AlertTriangle } from "lucide-react";
-import { useActionState, useEffect, useRef, useState } from "react";
 import { ButtonGroup } from "~/components/ui/button-group";
+import { useActionState, useEffect, useRef, useState } from "react";
 
 const initialState: Response = {
   timestamp: Date.now(),
