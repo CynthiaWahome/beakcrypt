@@ -6,7 +6,7 @@ import type { Response } from "./actions";
 import { Input } from "~/components/ui/input";
 import { Button } from "~/components/ui/button";
 import { Check, AlertTriangle } from "lucide-react";
-import { useActionState, useEffect, useRef } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import { ButtonGroup } from "~/components/ui/button-group";
 
 const initialState: Response = {
@@ -24,6 +24,7 @@ export default function WaitlistForm() {
     joinWaitlist,
     initialState,
   );
+  const [showError, setShowError] = useState(false);
 
   const hasSuccess = "message" in state && !!state.message;
   const hasError = "error" in state && !!state.error;
@@ -34,6 +35,21 @@ export default function WaitlistForm() {
     : null;
 
   useEffect(() => {
+    if (hasError) {
+      setShowError(true);
+    }
+  }, [hasError, state.timestamp]);
+
+  useEffect(() => {
+    if (showError) {
+      const timer = setTimeout(() => {
+        setShowError(false);
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [showError]);
+
+  useEffect(() => {
     if (hasSuccess) {
       confetti({
         particleCount: 100,
@@ -42,6 +58,12 @@ export default function WaitlistForm() {
       });
     }
   }, [hasSuccess]);
+
+  const handleInputChange = () => {
+    if (showError) {
+      setShowError(false);
+    }
+  };
 
   if (hasSuccess) {
     return (
@@ -61,7 +83,7 @@ export default function WaitlistForm() {
       key={hasError && "timestamp" in state ? state.timestamp : undefined}
       action={formAction}
       className={`flex flex-col items-center gap-2 w-full self-center justify-center transition-all duration-300 ${
-        hasError ? "animate-shake" : ""
+        showError ? "animate-shake" : ""
       }`}
     >
       {pending ? (
@@ -75,47 +97,52 @@ export default function WaitlistForm() {
           </span>
         </div>
       ) : (
-        <ButtonGroup className="w-full self-center items-center justify-center">
-          <Input
-            ref={emailRef}
-            required
-            name="email"
-            id="email"
-            type="email"
-            className={`w-full max-w-xs transition-all duration-200 ${
-              hasError
-                ? "border-red-500/50 focus:border-red-500/70 focus:ring-red-500/20"
-                : ""
-            }`}
-            placeholder="Enter your email"
-            defaultValue={state.inputs.email}
-            aria-invalid={hasError}
-            aria-describedby={hasError ? "email-error" : undefined}
-          />
-          <Button
-            variant="outline"
-            type="submit"
-            className="min-w-[90px] transition-all duration-200"
-          >
-            Submit
-          </Button>
-        </ButtonGroup>
-      )}
+        <>
+          <ButtonGroup className="w-full self-center items-center justify-center">
+            <Input
+              ref={emailRef}
+              required
+              name="email"
+              id="email"
+              type="email"
+              className={`w-full max-w-xs transition-all duration-200 ${
+                showError
+                  ? "border-red-500/50 focus:border-red-500/70 focus:ring-red-500/20"
+                  : ""
+              }`}
+              placeholder="Enter your email"
+              defaultValue={state.inputs.email}
+              aria-invalid={showError}
+              aria-describedby={showError ? "email-error" : undefined}
+              onChange={handleInputChange}
+            />
+            <Button
+              variant="outline"
+              type="submit"
+              className="min-w-[90px] transition-all duration-200"
+            >
+              Submit
+            </Button>
+          </ButtonGroup>
 
-      {!pending && hasError && errorMessage && (
-        <div
-          id="email-error"
-          role="alert"
-          className="flex items-center gap-2 text-sm text-red-400 animate-in fade-in slide-in-from-top-1 duration-200"
-        >
-          <AlertTriangle className="w-4 h-4 flex-shrink-0" />
-          <span>{errorMessage}</span>
-        </div>
-      )}
+          {showError && errorMessage && (
+            <div
+              id="email-error"
+              role="alert"
+              className="flex items-center gap-2 text-sm text-red-400 animate-in fade-in slide-in-from-top-1 duration-200"
+            >
+              <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+              <span>{errorMessage}</span>
+            </div>
+          )}
 
-      <span className="text-xs text-white/50">
-        No spam, Unsubscribe anytime
-      </span>
+          {!showError && (
+            <span className="text-xs text-white/50">
+              No spam, Unsubscribe anytime
+            </span>
+          )}
+        </>
+      )}
 
       <style jsx>{`
         @keyframes shake {

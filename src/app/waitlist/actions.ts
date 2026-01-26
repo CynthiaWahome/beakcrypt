@@ -7,6 +7,7 @@ import { fetchMutation, fetchQuery } from "convex/nextjs";
 const emailSchema = z.email("Please enter a valid email address");
 
 export interface SuccessResponse {
+  timestamp: number;
   message: string;
   inputs: {
     email: z.infer<typeof emailSchema>;
@@ -62,6 +63,7 @@ export const joinWaitlist = async (
     });
 
     return {
+      timestamp: Date.now(),
       message: "You've been added to the vault!",
       inputs: {
         email: validatedEmail.data,
