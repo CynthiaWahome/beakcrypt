@@ -1,10 +1,10 @@
 "use client";
 
-import confetti from "canvas-confetti";
 import { joinWaitlist } from "./actions";
 import type { Response } from "./actions";
 import { Input } from "~/components/ui/input";
 import { Button } from "~/components/ui/button";
+import { Confetti } from "~/components/ui/confetti";
 import { Check, AlertTriangle } from "lucide-react";
 import { ButtonGroup } from "~/components/ui/button-group";
 import { useActionState, useEffect, useRef, useState } from "react";
@@ -49,16 +49,6 @@ export default function WaitlistForm() {
     }
   }, [showError]);
 
-  useEffect(() => {
-    if (hasSuccess) {
-      confetti({
-        particleCount: 100,
-        spread: 70,
-        origin: { y: 0.6 },
-      });
-    }
-  }, [hasSuccess]);
-
   const handleInputChange = () => {
     if (showError) {
       setShowError(false);
@@ -68,6 +58,14 @@ export default function WaitlistForm() {
   if (hasSuccess) {
     return (
       <div className="flex flex-col items-center justify-center gap-3 w-full min-h-[72px]">
+        <Confetti
+          className="pointer-events-none fixed inset-0 z-[100] w-full h-full"
+          options={{
+            particleCount: 100,
+            spread: 70,
+            origin: { y: 0.6 },
+          }}
+        />
         <div className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 backdrop-blur-sm animate-in fade-in zoom-in-95 duration-300">
           <Check className="w-5 h-5 text-emerald-400" strokeWidth={2.5} />
           <span className="text-sm text-emerald-300 font-medium">
