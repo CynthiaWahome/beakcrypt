@@ -1,9 +1,9 @@
 import Link from "next/link";
 import WaitlistForm from "./form";
 import { Github } from "lucide-react";
+import AnimatedTerminal from "./terminal";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
-import { Card, CardContent } from "~/components/ui/card";
 
 export default function WaitlistPage() {
   return (
@@ -44,51 +44,7 @@ export default function WaitlistPage() {
           <WaitlistForm />
         </div>
 
-        <Card className="p-0 border-white/10 bg-[#0c0c0f] w-full max-w-3xl">
-          <div className="flex items-center gap-2 border-b border-white/5 px-6 py-3">
-            <div className="flex gap-2">
-              <div className="w-3 h-3 rounded-full bg-[#ff5f56]"></div>
-              <div className="w-3 h-3 rounded-full bg-[#ffbd2e]"></div>
-              <div className="w-3 h-3 rounded-full bg-[#27c93f]"></div>
-            </div>
-            <span className="ml-2 text-xs text-white/30">terminal</span>
-          </div>
-
-          <CardContent className="px-6 pb-6 font-mono text-sm leading-loose">
-            <div className="text-white/30">
-              <span className="text-[#5eead4]">$</span> beakcrypt init
-            </div>
-            <div className="text-white/40">
-              <span className="text-[#5eead4]">→</span> Project detected:
-              acme-app
-            </div>
-            <div className="text-white/40">
-              <span className="text-[#22c55e]">✓</span> Vault created
-              successfully
-            </div>
-
-            <div className="text-white/30">
-              <span className="text-[#5eead4]">$</span> beakcrypt invite
-              user@acme.com
-            </div>
-            <div className="text-white/40">
-              <span className="text-[#22c55e]">✓</span> Invitation sent to
-              user@acme.com
-            </div>
-
-            <div className="text-white/30">
-              <span className="text-[#5eead4]">$</span> beakcrypt push
-              .env.local
-            </div>
-            <div className="text-white/40">
-              <span className="text-[#5eead4]">→</span> Encrypting 12
-              variables...
-            </div>
-            <div className="text-white/40">
-              <span className="text-[#22c55e]">✓</span> Synced to vault
-            </div>
-          </CardContent>
-        </Card>
+        <AnimatedTerminal />
       </main>
     </section>
   );
