@@ -20,7 +20,7 @@ const playfair = Playfair_Display({
 });
 
 export const metadata: Metadata = {
-  title: "Beakcrypt | Secure Environment Variable Management",
+  title: "Beakcrypt - Secure Environment Variable Management",
   description:
     "Stop sharing .env files over Slack. Beakcrypt provides encrypted, team-friendly environment variable management for modern development teams.",
 };

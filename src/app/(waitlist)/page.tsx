@@ -7,8 +7,8 @@ import { Button } from "~/components/ui/button";
 
 export default function WaitlistPage() {
   return (
-    <section>
-      <nav className="mx-auto flex max-w-6xl items-center justify-between px-6 py-5">
+    <section className="flex flex-col items-center justify-between min-h-screen w-full">
+      <nav className="mx-auto flex w-full max-w-6xl items-center justify-between px-6 py-5">
         <Link href="/" className="flex items-center gap-2.5">
           <div className="flex h-7 w-7 items-center justify-center border border-[#5eead4]/50">
             <div className="h-2 w-2 rotate-45 bg-[#5eead4]" />
@@ -17,14 +17,14 @@ export default function WaitlistPage() {
         </Link>
 
         <Button variant="outline" asChild>
-          <Link href="https://github.com/prudentbird/beakcrypt">
+          <Link href="https://github.com/prudentbird/beakcrypt" target="_blank">
             <Github className="h-4 w-4" />
             Star on GitHub
           </Link>
         </Button>
       </nav>
 
-      <main className="flex flex-col items-center gap-10 px-6 mt-10">
+      <main className="flex flex-col items-center gap-10 px-6">
         <div className="flex flex-col items-center w-full gap-4">
           <Badge
             variant="outline"
@@ -46,6 +46,17 @@ export default function WaitlistPage() {
 
         <AnimatedTerminal />
       </main>
+
+      <footer className="w-full py-6 text-center text-sm text-white/50">
+        Made with ❤️ by{" "}
+        <Link
+          target="_blank"
+          href="https://prudentbird.com"
+          className="text-white/50 hover:text-[#5eead4] transition-colors underline"
+        >
+          prudentbird
+        </Link>
+      </footer>
     </section>
   );
 }
