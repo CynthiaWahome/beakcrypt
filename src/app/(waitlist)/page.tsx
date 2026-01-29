@@ -7,7 +7,7 @@ import { Button } from "~/components/ui/button";
 
 export default function WaitlistPage() {
   return (
-    <section className="flex flex-col items-center justify-between min-h-screen w-full">
+    <section className="flex flex-col items-center justify-between gap-5 min-h-screen w-full">
       <nav className="mx-auto flex w-full max-w-6xl items-center justify-between px-6 py-5">
         <Link href="/" className="flex items-center gap-2.5">
           <div className="flex h-7 w-7 items-center justify-center border border-[#5eead4]/50">
@@ -37,7 +37,7 @@ export default function WaitlistPage() {
             Be First to join the <span className="text-[#5eead4]">Vault</span>
           </h1>
 
-          <p className="max-w-xl text-center text-xl leading-relaxed text-white/50">
+          <p className="max-w-xl text-center text-lg lg:text-xl leading-relaxed text-white/50">
             The open-source standard for managing and sharing environment
             variables securely across your entire development workflow.
           </p>

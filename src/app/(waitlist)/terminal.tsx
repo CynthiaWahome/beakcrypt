@@ -7,7 +7,7 @@ interface TerminalLine {
   prefix: string;
   prefixColor: string;
   content: string;
-  delay: number; // delay before this line appears (after the previous)
+  delay: number;
 }
 
 const terminalLines: TerminalLine[] = [
