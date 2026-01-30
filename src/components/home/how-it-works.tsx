@@ -23,9 +23,9 @@ export default function HowItWorks() {
   return (
     <section
       id="how-it-works"
-      className="border-y border-white/5 bg-white/1 px-6 py-24"
+      className="border-y border-white/5 bg-white/1 py-24"
     >
-      <div className="mx-auto max-w-6xl">
+      <div className="mx-auto max-w-6xl px-6">
         <div className="mb-12 text-center">
           <div className="mb-4 flex items-center justify-center gap-3">
             <div className="h-px w-8 bg-[#5eead4]" />

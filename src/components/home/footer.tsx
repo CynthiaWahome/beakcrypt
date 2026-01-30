@@ -28,8 +28,8 @@ const footerLinks = [
 
 export default function Footer() {
   return (
-    <footer className="border-t border-white/5 px-6 py-12">
-      <div className="mx-auto max-w-6xl">
+    <footer className="border-t border-white/5 py-12">
+      <div className="mx-auto max-w-6xl px-6">
         <div className="flex flex-col md:flex-row gap-12 justify-between">
           <div>
             <div className="mb-4 flex items-center gap-2">
