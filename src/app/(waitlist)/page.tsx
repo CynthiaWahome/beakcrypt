@@ -33,7 +33,7 @@ export default function WaitlistPage() {
             Join The Waitlist
           </Badge>
 
-          <h1 className="font-sans text-5xl text-center font-medium leading-[1.1] tracking-tight md:text-6xl lg:text-7xl">
+          <h1 className="font-serif text-5xl text-center font-medium leading-[1.1] tracking-tight md:text-6xl lg:text-7xl">
             Be First to join the <span className="text-[#5eead4]">Vault</span>
           </h1>
 

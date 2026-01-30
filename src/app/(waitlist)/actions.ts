@@ -69,7 +69,7 @@ export const joinWaitlist = async (
         email: validatedEmail.data,
       },
     };
-  } catch (error) {
+  } catch {
     return {
       error: "Oops, vault is currently unavailable.",
       timestamp: Date.now(),

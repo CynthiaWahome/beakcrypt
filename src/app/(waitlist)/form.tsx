@@ -25,20 +25,24 @@ export default function WaitlistForm() {
     initialState,
   );
   const [showError, setShowError] = useState(false);
+  const [pendingEmail, setPendingEmail] = useState("");
+  const [prevTimestamp, setPrevTimestamp] = useState(state.timestamp);
 
   const hasSuccess = "message" in state && !!state.message;
   const hasError = "error" in state && !!state.error;
+
+  if (state.timestamp !== prevTimestamp) {
+    setPrevTimestamp(state.timestamp);
+    if (hasError) {
+      setShowError(true);
+    }
+  }
+
   const errorMessage = hasError
     ? Array.isArray(state.error)
       ? state.error[0]
       : state.error
     : null;
-
-  useEffect(() => {
-    if (hasError) {
-      setShowError(true);
-    }
-  }, [hasError, state.timestamp]);
 
   useEffect(() => {
     if (showError) {
@@ -55,11 +59,17 @@ export default function WaitlistForm() {
     }
   };
 
+  const handleSubmit = () => {
+    if (emailRef.current) {
+      setPendingEmail(emailRef.current.value);
+    }
+  };
+
   if (hasSuccess) {
     return (
-      <div className="flex flex-col items-center justify-center gap-3 w-full min-h-[72px]">
+      <div className="flex flex-col items-center justify-center gap-3 w-full min-h-18">
         <Confetti
-          className="pointer-events-none fixed inset-0 z-[100] w-full h-full"
+          className="pointer-events-none fixed inset-0 z-100 w-full h-full"
           options={{
             particleCount: 100,
             spread: 70,
@@ -80,16 +90,17 @@ export default function WaitlistForm() {
     <form
       key={hasError && "timestamp" in state ? state.timestamp : undefined}
       action={formAction}
+      onSubmit={handleSubmit}
       className={`flex flex-col items-center gap-2 w-full self-center justify-center transition-all duration-300 ${
         showError ? "animate-shake" : ""
       }`}
     >
       {pending ? (
-        <div className="flex items-center justify-center min-h-[40px] w-full max-w-xs">
+        <div className="flex items-center justify-center min-h-10 w-full max-w-xs">
           <span className="text-sm text-white/70 animate-pulse">
             Adding{" "}
             <span className="text-white font-medium">
-              {emailRef.current?.value ?? state.inputs.email}
+              {pendingEmail || state.inputs.email}
             </span>{" "}
             to vault...
           </span>
@@ -117,7 +128,7 @@ export default function WaitlistForm() {
             <Button
               variant="outline"
               type="submit"
-              className="min-w-[90px] transition-all duration-200"
+              className="min-w-22.5 transition-all duration-200"
             >
               Submit
             </Button>
@@ -129,7 +140,7 @@ export default function WaitlistForm() {
               role="alert"
               className="flex items-center gap-2 text-sm text-red-400 animate-in fade-in slide-in-from-top-1 duration-200"
             >
-              <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+              <AlertTriangle className="w-4 h-4 shrink-0" />
               <span>{errorMessage}</span>
             </div>
           )}

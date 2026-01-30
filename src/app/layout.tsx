@@ -1,15 +1,15 @@
 import type { Metadata } from "next";
-import { Geist_Mono, Playfair_Display, DM_Sans } from "next/font/google";
+import { Inconsolata, Playfair_Display, Outfit } from "next/font/google";
 import "./globals.css";
 import Providers from "./providers";
 
-const dmSans = DM_Sans({
-  variable: "--font-dm-sans",
+const outfit = Outfit({
+  variable: "--font-outfit",
   subsets: ["latin"],
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const inconsolata = Inconsolata({
+  variable: "--font-inconsolata",
   subsets: ["latin"],
 });
 
@@ -33,7 +33,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body
-        className={`${dmSans.variable} ${geistMono.variable} ${playfair.variable} antialiased`}
+        className={`${outfit.variable} ${inconsolata.variable} ${playfair.variable} antialiased font-sans`}
       >
         <Providers>{children}</Providers>
       </body>

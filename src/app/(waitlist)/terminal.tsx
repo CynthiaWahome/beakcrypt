@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
 import { Card, CardContent } from "~/components/ui/card";
+import { useEffect, useState, useEffectEvent } from "react";
 
 interface TerminalLine {
   prefix: string;
@@ -66,7 +66,7 @@ const LOOP_PAUSE = 3000;
 export default function AnimatedTerminal() {
   const [visibleCount, setVisibleCount] = useState(0);
 
-  const runAnimation = useCallback(() => {
+  const runAnimation = useEffectEvent(() => {
     setVisibleCount(0);
 
     let cumulativeDelay = 0;
@@ -76,7 +76,7 @@ export default function AnimatedTerminal() {
         setVisibleCount(index + 1);
       }, cumulativeDelay);
     });
-  }, []);
+  });
 
   useEffect(() => {
     runAnimation();
@@ -86,16 +86,14 @@ export default function AnimatedTerminal() {
     const interval = setInterval(runAnimation, totalDuration);
 
     return () => clearInterval(interval);
-  }, [runAnimation]);
+  }, []);
 
   return (
     <Card className="p-0 border-white/10 bg-[#0c0c0f] w-full max-w-3xl overflow-hidden">
       <div className="flex items-center gap-2 border-b border-white/5 px-6 py-3">
-        <div className="flex gap-2">
-          <div className="w-3 h-3 rounded-full bg-[#ff5f56] transition-all duration-300 hover:scale-110"></div>
-          <div className="w-3 h-3 rounded-full bg-[#ffbd2e] transition-all duration-300 hover:scale-110"></div>
-          <div className="w-3 h-3 rounded-full bg-[#27c93f] transition-all duration-300 hover:scale-110"></div>
-        </div>
+        <div className="w-3 h-3 rounded-full bg-[#ff5f56]"></div>
+        <div className="w-3 h-3 rounded-full bg-[#ffbd2e]"></div>
+        <div className="w-3 h-3 rounded-full bg-[#27c93f]"></div>
         <span className="ml-2 text-xs text-white/30">terminal</span>
         <div className="ml-auto flex items-center gap-1.5 animate-pulse">
           <div className="w-1.5 h-1.5 rounded-full bg-[#5eead4]" />
@@ -103,7 +101,7 @@ export default function AnimatedTerminal() {
         </div>
       </div>
 
-      <CardContent className="px-6 pb-6 font-mono text-sm leading-loose min-h-[228px]">
+      <CardContent className="px-6 pb-6 font-mono text-sm leading-loose min-h-57">
         {terminalLines.map((line, index) => (
           <div
             key={index}
