@@ -28,6 +28,9 @@
       ],
       "conv/*": [
         "./convex/*"
+      ],
+      "fumadocs-mdx:collections/*": [
+        "./.source/*"
       ]
     }
   },
