@@ -3,6 +3,7 @@
 import { env } from "~/env";
 import { ReactNode } from "react";
 import { ThemeProvider } from "next-themes";
+import { RootProvider } from "fumadocs-ui/provider/next";
 import { Analytics } from "@vercel/analytics/next";
 import { ConvexReactClient } from "convex/react";
 import { ConvexBetterAuthProvider } from "@convex-dev/better-auth/react";
@@ -17,21 +18,23 @@ interface ProvidersProps {
 
 const Providers = ({ children, initialToken }: ProvidersProps) => {
   return (
-    <ThemeProvider
-      enableSystem
-      attribute="class"
-      defaultTheme="dark"
-      disableTransitionOnChange
-    >
-      <ConvexBetterAuthProvider
-        client={convex}
-        authClient={authClient}
-        initialToken={initialToken}
+    <RootProvider>
+      <ThemeProvider
+        enableSystem
+        attribute="class"
+        defaultTheme="dark"
+        disableTransitionOnChange
       >
-        {children}
-        <Analytics />
-      </ConvexBetterAuthProvider>
-    </ThemeProvider>
+        <ConvexBetterAuthProvider
+          client={convex}
+          authClient={authClient}
+          initialToken={initialToken}
+        >
+          {children}
+          <Analytics />
+        </ConvexBetterAuthProvider>
+      </ThemeProvider>
+    </RootProvider>
   );
 };
 

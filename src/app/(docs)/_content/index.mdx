@@ -1,0 +1,25 @@
+---
+title: Introduction
+description: Welcome to the Beakcrypt documentation
+icon: House
+---
+
+Beakcrypt is the open-source standard for managing and sharing environment variables securely across your entire development workflow. It serves as a modern alternative to sharing `.env` files over insecure channels, designed specifically for developers who value security and efficiency.
+
+## Quick Start
+
+Get started with Beakcrypt in seconds by installing the CLI globally.
+
+```package-install
+npm install -g beakcrypt
+```
+
+## Why Beakcrypt?
+
+- **AES-256 Encryption**: Secrets are encrypted on your machine before they ever touch the network.
+- **One Command Sync**: Run `beakcrypt pull` to sync secrets across your team. Works with npm, yarn, pnpm, and bun.
+- **Branch Environments**: Manage secrets separately for staging, production, and every feature branch effortlessly.
+
+## How it works
+
+Beakcrypt stores all your secrets in a secure vault. You can import variables to your local machine or cloud provider. Your team members can pull the latest secrets with a single command, ensuring everyone is in sync without compromising security.
