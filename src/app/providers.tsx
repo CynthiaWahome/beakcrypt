@@ -3,11 +3,11 @@
 import { env } from "~/env";
 import { ReactNode } from "react";
 import { ThemeProvider } from "next-themes";
-import { RootProvider } from "fumadocs-ui/provider/next";
-import { Analytics } from "@vercel/analytics/next";
-import { ConvexReactClient } from "convex/react";
-import { ConvexBetterAuthProvider } from "@convex-dev/better-auth/react";
 import { authClient } from "~/lib/auth-client";
+import { ConvexReactClient } from "convex/react";
+import { Analytics } from "@vercel/analytics/next";
+import { RootProvider } from "fumadocs-ui/provider/next";
+import { ConvexBetterAuthProvider } from "@convex-dev/better-auth/react";
 
 const convex = new ConvexReactClient(env.NEXT_PUBLIC_CONVEX_URL);
 
@@ -18,7 +18,7 @@ interface ProvidersProps {
 
 const Providers = ({ children, initialToken }: ProvidersProps) => {
   return (
-    <RootProvider>
+    <RootProvider theme={{ enabled: false }}>
       <ThemeProvider
         enableSystem
         attribute="class"

@@ -5,5 +5,9 @@ export function baseOptions(): BaseLayoutProps {
     nav: {
       title: "Beakcrypt",
     },
+    themeSwitch: {
+      enabled: false,
+    },
+    githubUrl: "https://github.com/prudentbird/beakcrypt",
   };
 }
