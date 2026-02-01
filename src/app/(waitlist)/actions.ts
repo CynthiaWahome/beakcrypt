@@ -43,7 +43,7 @@ export const joinWaitlist = async (
     };
   }
   try {
-    const existing = await fetchQuery(api.waitlist.getByEmail, {
+    const existing = await fetchQuery(api.waitlists.getByEmail, {
       email: validatedEmail.data,
     });
 
@@ -57,9 +57,8 @@ export const joinWaitlist = async (
       };
     }
 
-    await fetchMutation(api.waitlist.add, {
+    await fetchMutation(api.waitlists.add, {
       email: validatedEmail.data,
-      createdAt: Date.now(),
     });
 
     return {

@@ -20,7 +20,11 @@ export default function AuthPage() {
         variant="outline"
         className="w-full max-w-sm"
         onClick={() =>
-          signIn.social({ provider: "github", callbackURL: "/dashboard" })
+          signIn.social({
+            provider: "github",
+            callbackURL: "/dashboard",
+            newUserCallbackURL: "/onboarding",
+          })
         }
       >
         <Github className="h-4 w-4" />
