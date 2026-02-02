@@ -193,10 +193,11 @@ export const getInvite = query({
     if (!org) return null;
 
     return {
-      email: invite.email,
       orgName: org.name,
       orgSlug: org.slug,
-      inviterId: invite.inviterId,
+      role: invite.role,
+      email: invite.email,
+      orgAvatar: org.avatar,
     };
   },
 });
