@@ -184,6 +184,11 @@ export const getInvite = query({
     token: v.string(),
   },
   handler: async (ctx, args) => {
+    const user = await authComponent.getAuthUser(ctx).catch(() => null);
+
+    if (!user) {
+      throw new Error("Unable to perform this action");
+    }
     const invite = await ctx.db
       .query("invites")
       .withIndex("by_token", (q) => q.eq("token", args.token))

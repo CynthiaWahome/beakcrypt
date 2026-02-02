@@ -3,15 +3,18 @@
 import { useState } from "react";
 import { signIn } from "~/lib/auth-client";
 import { Button } from "~/components/ui/button";
-import { useSearchParams } from "next/navigation";
 import { Github, Loader2, AlertCircle } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "~/components/ui/alert";
 
-export default function AuthButton() {
-  const searchParams = useSearchParams();
-  const error = searchParams.get("error");
+export default function AuthContent({
+  callbackURL,
+  error,
+}: {
+  callbackURL?: string;
+  error?: string;
+}) {
+  const resolvedCallbackURL = callbackURL || "/";
   const [isPending, setIsPending] = useState(false);
-  const callbackURL = searchParams.get("callbackURL") || "/";
 
   return (
     <div className="flex flex-col gap-4 w-full max-w-sm">
@@ -23,10 +26,10 @@ export default function AuthButton() {
         onClick={async () => {
           setIsPending(true);
           await signIn.social({
-            callbackURL,
             provider: "github",
-            newUserCallbackURL: "/onboarding",
             errorCallbackURL: "/auth",
+            callbackURL: resolvedCallbackURL,
+            newUserCallbackURL: "/onboarding",
           });
         }}
       >

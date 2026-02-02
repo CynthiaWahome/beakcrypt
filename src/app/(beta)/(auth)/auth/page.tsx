@@ -1,8 +1,12 @@
 import Link from "next/link";
 import { Suspense } from "react";
-import AuthButton from "./auth-button";
+import AuthHandler from "./handler";
 
-export default function AuthPage() {
+export default function AuthPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ callbackURL?: string; error?: string }>;
+}) {
   return (
     <main className="flex flex-col gap-6 items-center justify-center min-h-screen max-w-xl mx-auto p-6">
       <Link href="/" className="flex items-center gap-2.5">
@@ -17,7 +21,7 @@ export default function AuthPage() {
           <div className="h-10 w-full max-w-sm bg-muted animate-pulse rounded-md" />
         }
       >
-        <AuthButton />
+        <AuthHandler searchParamsPromise={searchParams} />
       </Suspense>
 
       <p className="text-sm text-center text-muted-foreground">
