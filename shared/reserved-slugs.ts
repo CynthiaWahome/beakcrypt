@@ -601,11 +601,13 @@ export const RESERVED_SLUGS = [
 
 export type ReservedSlug = (typeof RESERVED_SLUGS)[number];
 
+const RESERVED_SLUG_SET = new Set(RESERVED_SLUGS);
+
 /**
  * Check if a slug is reserved and cannot be used by organizations.
  */
 export function isReservedSlug(slug: string): boolean {
-  return RESERVED_SLUGS.includes(slug.toLowerCase() as ReservedSlug);
+  return RESERVED_SLUG_SET.has(slug.trim().toLowerCase() as ReservedSlug);
 }
 
 export type SlugValidationResult =
@@ -637,7 +639,7 @@ export function validateSlug(slug: string): SlugValidationResult {
     };
   }
 
-  const normalizedSlug = slug.toLowerCase();
+  const normalizedSlug = slug.trim().toLowerCase();
 
   if (normalizedSlug.length < 3) {
     return { valid: false, error: "Slug must be at least 3 characters" };

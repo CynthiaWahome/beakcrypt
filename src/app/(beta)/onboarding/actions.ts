@@ -4,7 +4,7 @@ import { z } from "zod/v4";
 import { api } from "conv/_generated/api";
 import type { Response } from "~/types/response";
 import { collectErrorMessages } from "~/lib/utils";
-import { validateSlug } from "~/lib/reserved-slugs";
+import { validateSlug } from "shared/reserved-slugs";
 import type { Doc, Id } from "conv/_generated/dataModel";
 import { isAuthenticated, fetchAuthMutation } from "~/lib/auth-server";
 

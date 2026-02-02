@@ -10,6 +10,7 @@ export const roles = v.union(
 export default defineSchema({
   waitlists: defineTable({
     email: v.string(),
+    updatedAt: v.number(),
     createdAt: v.optional(v.number()),
   }).index("by_email", ["email"]),
 
@@ -54,5 +55,6 @@ export default defineSchema({
   })
     .index("by_org", ["orgId"])
     .index("by_token", ["token"])
-    .index("by_email", ["email"]),
+    .index("by_email", ["email"])
+    .index("by_org_and_status", ["orgId", "status"]),
 });

@@ -21,6 +21,8 @@ export const add = mutation({
   handler: async (ctx, args) => {
     const id = await ctx.db.insert("waitlists", {
       email: args.email,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
     });
     return id;
   },

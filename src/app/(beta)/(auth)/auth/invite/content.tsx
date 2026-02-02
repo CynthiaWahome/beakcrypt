@@ -25,6 +25,7 @@ import {
   ShieldAlert,
 } from "lucide-react";
 import { Preloaded, usePreloadedQuery } from "convex/react";
+import AppLoader from "~/components/loader";
 
 interface InviteContentProps {
   preloadedInvite: Preloaded<typeof api.invites.getInvite>;
@@ -36,7 +37,11 @@ export default function InviteContent({
   token,
 }: InviteContentProps) {
   const router = useRouter();
-  const { data: session } = useSession();
+  const { data: session, isPending: isSessionPending } = useSession();
+
+  if (isSessionPending) {
+    return <AppLoader />;
+  }
 
   const invite = usePreloadedQuery(preloadedInvite);
   const acceptMutation = useMutation(api.invites.accept);
