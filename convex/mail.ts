@@ -1,0 +1,104 @@
+"use node";
+
+import { v } from "convex/values";
+import * as nodemailer from "nodemailer";
+import { render } from "@react-email/components";
+import { WelcomeEmail } from "../emails/welcome";
+import { InviteUserEmail } from "../emails/invite";
+import { internalAction } from "./_generated/server";
+import { Effect, Context, Layer, Schedule } from "effect";
+import type SMTPTransport from "nodemailer/lib/smtp-transport";
+
+export class EmailService extends Context.Tag("EmailService")<
+  EmailService,
+  {
+    send: (
+      options: nodemailer.SendMailOptions,
+    ) => Effect.Effect<{ messageId: string }, Error>;
+  }
+>() {}
+
+const make = Effect.sync(() => {
+  const transporter = nodemailer.createTransport({
+    host: process.env.SMTP_HOST,
+    port: Number(process.env.SMTP_PORT),
+    secure: process.env.SMTP_SECURE === "true",
+    auth: {
+      user: process.env.SMTP_USER,
+      pass: process.env.SMTP_PASS,
+    },
+  });
+
+  return EmailService.of({
+    send: (options) =>
+      Effect.tryPromise({
+        try: () =>
+          transporter.sendMail({
+            from: process.env.EMAIL_FROM,
+            ...options,
+          }),
+        catch: (error) => new Error(String(error)),
+      }).pipe(
+        Effect.retry(Schedule.recurs(3)),
+        Effect.map((result: SMTPTransport.SentMessageInfo) => ({
+          messageId: result.messageId,
+        })),
+      ),
+  });
+});
+
+export const EmailServiceLive = Layer.effect(EmailService, make);
+
+export const sendInviteMail = internalAction({
+  args: {
+    url: v.string(),
+    email: v.string(),
+    orgName: v.string(),
+    invitedByEmail: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const emailHtml = await render(
+      InviteUserEmail({
+        inviteLink: args.url,
+        userEmail: args.email,
+        orgName: args.orgName,
+        invitedByEmail: args.invitedByEmail,
+      }),
+    );
+
+    const program = Effect.gen(function* () {
+      const emailService = yield* EmailService;
+      return yield* emailService.send({
+        to: args.email,
+        html: emailHtml,
+        subject: `Join ${args.orgName} on Beakcrypt`,
+      });
+    });
+
+    await Effect.runPromise(program.pipe(Effect.provide(EmailServiceLive)));
+  },
+});
+
+export const sendWelcomeMail = internalAction({
+  args: {
+    email: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const emailHtml = await render(
+      WelcomeEmail({
+        email: args.email,
+      }),
+    );
+
+    const program = Effect.gen(function* () {
+      const emailService = yield* EmailService;
+      return yield* emailService.send({
+        to: args.email,
+        subject: "Welcome to Beakcrypt",
+        html: emailHtml,
+      });
+    });
+
+    await Effect.runPromise(program.pipe(Effect.provide(EmailServiceLive)));
+  },
+});
