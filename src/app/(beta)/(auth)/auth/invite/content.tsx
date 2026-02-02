@@ -39,10 +39,6 @@ export default function InviteContent({
   const router = useRouter();
   const { data: session, isPending: isSessionPending } = useSession();
 
-  if (isSessionPending) {
-    return <AppLoader />;
-  }
-
   const invite = usePreloadedQuery(preloadedInvite);
   const acceptMutation = useMutation(api.invites.accept);
   const declineMutation = useMutation(api.invites.decline);
@@ -53,6 +49,10 @@ export default function InviteContent({
   );
 
   const [isSignOutPending, setIsSignOutPending] = useState(false);
+
+  if (isSessionPending) {
+    return <AppLoader />;
+  }
 
   if (session?.user?.email && invite && invite.email !== session.user.email) {
     return (
@@ -75,15 +75,19 @@ export default function InviteContent({
           disabled={isSignOutPending}
           onClick={async () => {
             setIsSignOutPending(true);
-            await signOut({
-              fetchOptions: {
-                onSuccess: () => {
-                  router.push(
-                    `/auth?callbackURL=${encodeURIComponent(`/auth/invite?token=${token}`)}`,
-                  );
+            try {
+              await signOut({
+                fetchOptions: {
+                  onSuccess: () => {
+                    router.push(
+                      `/auth?callbackURL=${encodeURIComponent(`/auth/invite?token=${token}`)}`,
+                    );
+                  },
                 },
-              },
-            });
+              });
+            } finally {
+              setIsSignOutPending(false);
+            }
           }}
         >
           {isSignOutPending ? (

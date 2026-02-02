@@ -631,7 +631,13 @@ export function validateSlug(slug: string): SlugValidationResult {
     return { valid: false, error: "Slug is required" };
   }
 
-  if (/[\/\?#&=%@:;\[\]{}|\\<>^`~\s]/.test(slug)) {
+  const trimmedSlug = slug.trim();
+
+  if (trimmedSlug !== trimmedSlug.toLowerCase()) {
+    return { valid: false, error: "Slug must be lowercase" };
+  }
+
+  if (/[\/\?#&=%@:;\[\]{}|\\<>^`~\s]/.test(trimmedSlug)) {
     return {
       valid: false,
       error:
@@ -639,7 +645,7 @@ export function validateSlug(slug: string): SlugValidationResult {
     };
   }
 
-  const normalizedSlug = slug.trim().toLowerCase();
+  const normalizedSlug = trimmedSlug.toLowerCase();
 
   if (normalizedSlug.length < 3) {
     return { valid: false, error: "Slug must be at least 3 characters" };
