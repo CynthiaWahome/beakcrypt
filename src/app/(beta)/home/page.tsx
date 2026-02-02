@@ -1,12 +1,27 @@
 import Nav from "~/components/home/nav";
 import Hero from "~/components/home/hero";
+import { api } from "conv/_generated/api";
+import { redirect } from "next/navigation";
 import Footer from "~/components/home/footer";
 import Features from "~/components/home/features";
 import TrustedBy from "~/components/home/trusted-by";
 import HowItWorks from "~/components/home/how-it-works";
 import CallToAction from "~/components/home/call-to-action";
+import { fetchAuthQuery, isAuthenticated } from "~/lib/auth-server";
 
-export default function Home() {
+export default async function Home() {
+  const isAuth = await isAuthenticated();
+
+  if (isAuth) {
+    const orgs = await fetchAuthQuery(api.organizations.list, {});
+
+    if (orgs.length > 0) {
+      redirect(`/${orgs[0].slug}`);
+    } else {
+      redirect("/onboarding");
+    }
+  }
+
   return (
     <div className="relative min-h-screen overflow-hidden bg-[#09090b] text-[#fafafa]">
       <div className="pointer-events-none fixed inset-0 opacity-[0.02]">
