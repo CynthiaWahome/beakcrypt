@@ -47,6 +47,7 @@ export default defineSchema({
       v.literal("accepted"),
       v.literal("expired"),
       v.literal("revoked"),
+      v.literal("declined"),
     ),
     createdAt: v.optional(v.number()),
     updatedAt: v.number(),
