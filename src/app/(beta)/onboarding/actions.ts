@@ -4,12 +4,22 @@ import { z } from "zod/v4";
 import { api } from "conv/_generated/api";
 import type { Response } from "~/types/response";
 import { collectErrorMessages } from "~/lib/utils";
+import { validateSlug } from "~/lib/reserved-slugs";
 import type { Doc, Id } from "conv/_generated/dataModel";
 import { isAuthenticated, fetchAuthMutation } from "~/lib/auth-server";
 
 const createOrganizationSchema = z.object({
   name: z.string().min(3).max(32),
-  slug: z.string().min(3).max(48),
+  slug: z
+    .string()
+    .min(3)
+    .max(32)
+    .refine((slug) => validateSlug(slug).valid, {
+      message: "Invalid slug format",
+    })
+    .transform((slug) => {
+      return slug.toLowerCase();
+    }),
 });
 
 export const createOrganization = async (

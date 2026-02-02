@@ -607,3 +607,70 @@ export type ReservedSlug = (typeof RESERVED_SLUGS)[number];
 export function isReservedSlug(slug: string): boolean {
   return RESERVED_SLUGS.includes(slug.toLowerCase() as ReservedSlug);
 }
+
+export type SlugValidationResult =
+  | { valid: true }
+  | { valid: false; error: string };
+
+/**
+ * Validates a slug for organization URLs.
+ * Ensures the slug is safe for URL routing and doesn't conflict with reserved paths.
+ *
+ * Rules:
+ * - Must be 3-32 characters long
+ * - Can only contain lowercase letters, numbers, and single hyphens
+ * - Cannot start or end with a hyphen
+ * - Cannot contain consecutive hyphens
+ * - Cannot contain URL-unsafe characters (/, ?, #, &, =, etc.)
+ * - Cannot be a reserved slug
+ */
+export function validateSlug(slug: string): SlugValidationResult {
+  if (!slug) {
+    return { valid: false, error: "Slug is required" };
+  }
+
+  if (/[\/\?#&=%@:;\[\]{}|\\<>^`~\s]/.test(slug)) {
+    return {
+      valid: false,
+      error:
+        "Slug cannot contain special characters like /, ?, #, &, =, @, or spaces",
+    };
+  }
+
+  const normalizedSlug = slug.toLowerCase();
+
+  if (normalizedSlug.length < 3) {
+    return { valid: false, error: "Slug must be at least 3 characters" };
+  }
+
+  if (normalizedSlug.length > 32) {
+    return { valid: false, error: "Slug cannot exceed 32 characters" };
+  }
+
+  if (!/^[a-z0-9-]+$/.test(normalizedSlug)) {
+    return {
+      valid: false,
+      error: "Slug can only contain lowercase letters, numbers, and hyphens",
+    };
+  }
+
+  if (normalizedSlug.startsWith("-")) {
+    return { valid: false, error: "Slug cannot start with a hyphen" };
+  }
+  if (normalizedSlug.endsWith("-")) {
+    return { valid: false, error: "Slug cannot end with a hyphen" };
+  }
+
+  if (/--/.test(normalizedSlug)) {
+    return { valid: false, error: "Slug cannot contain consecutive hyphens" };
+  }
+  if (isReservedSlug(normalizedSlug)) {
+    return { valid: false, error: "This URL is reserved and cannot be used" };
+  }
+
+  return { valid: true };
+}
+
+export function isValidSlug(slug: string): boolean {
+  return validateSlug(slug).valid;
+}

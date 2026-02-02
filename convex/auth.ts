@@ -26,6 +26,9 @@ export const createAuth = (ctx: GenericCtx<DataModel>) => {
       user: {
         create: {
           after: async (user) => {
+            if (!user.email) {
+              return;
+            }
             const actionCtx = requireActionCtx(ctx);
             await actionCtx.scheduler.runAfter(
               0,

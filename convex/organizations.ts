@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { authComponent } from "./auth";
 import { query, mutation } from "./_generated/server";
+import { validateSlug } from "shared/reserved-slugs";
 
 export const create = mutation({
   args: {
@@ -9,6 +10,11 @@ export const create = mutation({
     avatar: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    const slugValidation = validateSlug(args.slug);
+    if (!slugValidation.valid) {
+      throw new Error(slugValidation.error);
+    }
+
     const existing = await ctx.db
       .query("organizations")
       .withIndex("by_slug", (q) => q.eq("slug", args.slug))

@@ -118,16 +118,16 @@ export const accept = mutation({
       throw new Error("You are already a member of this organization");
     }
 
-    await ctx.db.patch(invite._id, {
-      status: "accepted",
-      updatedAt: Date.now(),
-    });
-
     await ctx.db.insert("organizationMembers", {
       orgId: invite.orgId,
       userId: user._id,
       role: invite.role,
       createdAt: Date.now(),
+      updatedAt: Date.now(),
+    });
+
+    await ctx.db.patch(invite._id, {
+      status: "accepted",
       updatedAt: Date.now(),
     });
 

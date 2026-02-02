@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { signIn } from "~/lib/auth-client";
 import { Button } from "~/components/ui/button";
+import { getSafeCallbackURL } from "~/lib/utils";
 import { Github, Loader2, AlertCircle } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "~/components/ui/alert";
 
@@ -13,7 +14,7 @@ export default function AuthContent({
   callbackURL?: string;
   error?: string;
 }) {
-  const resolvedCallbackURL = callbackURL || "/";
+  const resolvedCallbackURL = getSafeCallbackURL(callbackURL);
   const [isPending, setIsPending] = useState(false);
 
   return (
@@ -25,12 +26,16 @@ export default function AuthContent({
         className="w-full"
         onClick={async () => {
           setIsPending(true);
-          await signIn.social({
-            provider: "github",
-            errorCallbackURL: "/auth",
-            callbackURL: resolvedCallbackURL,
-            newUserCallbackURL: "/onboarding",
-          });
+          try {
+            await signIn.social({
+              provider: "github",
+              errorCallbackURL: "/auth",
+              callbackURL: resolvedCallbackURL,
+              newUserCallbackURL: "/onboarding",
+            });
+          } finally {
+            setIsPending(false);
+          }
         }}
       >
         {isPending ? (

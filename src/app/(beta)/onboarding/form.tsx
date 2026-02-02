@@ -18,7 +18,7 @@ import {
   UserPlus,
   ArrowRight,
 } from "lucide-react";
-import { isReservedSlug } from "~/lib/reserved-slugs";
+import { validateSlug } from "shared/reserved-slugs";
 import {
   InputGroup,
   InputGroupAddon,
@@ -81,13 +81,16 @@ export default function OnboardingForm() {
     return () => clearTimeout(handler);
   }, [slug]);
 
-  const isReserved = isReservedSlug(debouncedSlug);
+  const slugValidation = validateSlug(debouncedSlug);
+  const isSlugInvalid = !slugValidation.valid;
+  const slugError = isSlugInvalid ? slugValidation.error : null;
+
   const isSlugTakenQuery = useQuery(
     api.organizations.checkSlug,
-    debouncedSlug.length >= 3 && !isReserved ? { slug: debouncedSlug } : "skip",
+    slugValidation.valid ? { slug: debouncedSlug } : "skip",
   );
 
-  const isSlugTaken = isReserved || isSlugTakenQuery;
+  const isSlugTaken = isSlugInvalid || isSlugTakenQuery;
 
   const [isSkipped, setIsSkipped] = useState(false);
 
@@ -236,17 +239,22 @@ export default function OnboardingForm() {
                     className="pl-px!"
                   />
                   <InputGroupAddon align="inline-end">
-                    {debouncedSlug.length >= 3 && isSlugTaken === undefined ? (
+                    {slugValidation.valid && isSlugTakenQuery === undefined ? (
                       <Spinner />
-                    ) : isSlugTaken === true ? (
+                    ) : isSlugInvalid || isSlugTakenQuery === true ? (
                       <X className="w-4 h-4 text-red-500" />
-                    ) : isSlugTaken === false ? (
+                    ) : slugValidation.valid && isSlugTakenQuery === false ? (
                       <Check className="w-4 h-4 text-emerald-500" />
                     ) : null}
                   </InputGroupAddon>
                 </InputGroup>
-                <p className="text-[0.8rem] text-zinc-500">
-                  This will be your workspace URL identifier.
+                <p
+                  className={`text-[0.8rem] ${slugError ? "text-red-400" : "text-zinc-500"}`}
+                >
+                  {slugError ||
+                    (isSlugTakenQuery === true
+                      ? "This URL is already taken"
+                      : "This will be your workspace URL identifier.")}
                 </p>
               </div>
 

@@ -2,11 +2,11 @@
 
 import { v } from "convex/values";
 import * as nodemailer from "nodemailer";
+import { Effect, Context, Layer } from "effect";
 import { render } from "@react-email/components";
 import { WelcomeEmail } from "../emails/welcome";
 import { InviteUserEmail } from "../emails/invite";
 import { internalAction } from "./_generated/server";
-import { Effect, Context, Layer, Schedule } from "effect";
 import type SMTPTransport from "nodemailer/lib/smtp-transport";
 
 export class EmailService extends Context.Tag("EmailService")<
@@ -39,7 +39,6 @@ const make = Effect.sync(() => {
           }),
         catch: (error) => new Error(String(error)),
       }).pipe(
-        Effect.retry(Schedule.recurs(3)),
         Effect.map((result: SMTPTransport.SentMessageInfo) => ({
           messageId: result.messageId,
         })),
