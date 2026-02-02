@@ -1,7 +1,7 @@
 import { v } from "convex/values";
 import { authComponent } from "./auth";
 import { query, mutation } from "./_generated/server";
-import { validateSlug } from "shared/reserved-slugs";
+import { validateSlug } from "../shared/reserved-slugs";
 
 export const create = mutation({
   args: {
