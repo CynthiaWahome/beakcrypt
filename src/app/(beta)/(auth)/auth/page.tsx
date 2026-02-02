@@ -1,9 +1,6 @@
-"use client";
-
 import Link from "next/link";
-import { Github } from "lucide-react";
-import { signIn } from "~/lib/auth-client";
-import { Button } from "~/components/ui/button";
+import { Suspense } from "react";
+import AuthButton from "./auth-button";
 
 export default function AuthPage() {
   return (
@@ -15,21 +12,13 @@ export default function AuthPage() {
         <span className="text-sm font-medium tracking-tight">beakcrypt</span>
       </Link>
 
-      <Button
-        size="lg"
-        variant="outline"
-        className="w-full max-w-sm"
-        onClick={() =>
-          signIn.social({
-            provider: "github",
-            callbackURL: "/dashboard",
-            newUserCallbackURL: "/onboarding",
-          })
+      <Suspense
+        fallback={
+          <div className="h-10 w-full max-w-sm bg-muted animate-pulse rounded-md" />
         }
       >
-        <Github className="h-4 w-4" />
-        Continue With GitHub
-      </Button>
+        <AuthButton />
+      </Suspense>
 
       <p className="text-sm text-center text-muted-foreground">
         By continuing, you agree to our Terms of Service and Privacy Policy.
