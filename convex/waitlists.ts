@@ -7,7 +7,7 @@ export const getByEmail = query({
   },
   handler: async (ctx, args) => {
     const existing = await ctx.db
-      .query("waitlist")
+      .query("waitlists")
       .withIndex("by_email", (q) => q.eq("email", args.email))
       .first();
     return existing;
@@ -17,12 +17,12 @@ export const getByEmail = query({
 export const add = mutation({
   args: {
     email: v.string(),
-    createdAt: v.number(),
   },
   handler: async (ctx, args) => {
-    const id = await ctx.db.insert("waitlist", {
+    const id = await ctx.db.insert("waitlists", {
       email: args.email,
-      createdAt: args.createdAt,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
     });
     return id;
   },

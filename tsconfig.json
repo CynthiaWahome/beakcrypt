@@ -31,7 +31,10 @@
       ],
       "fumadocs-mdx:collections/*": [
         "./.source/*"
-      ]
+      ],
+      "shared/*": [
+        "./shared/*"
+      ],
     }
   },
   "include": [

@@ -2,8 +2,8 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
 export function proxy(request: NextRequest) {
-  const isPrivateBeta = request.cookies.get("private-beta")?.value === "true";
   const { pathname } = request.nextUrl;
+  const isPrivateBeta = request.cookies.get("private-beta")?.value === "true";
 
   if (pathname === "/") {
     if (isPrivateBeta) {

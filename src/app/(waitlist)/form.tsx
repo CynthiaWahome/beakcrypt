@@ -1,18 +1,17 @@
 "use client";
 
 import { joinWaitlist } from "./actions";
-import type { Response } from "./actions";
 import { Input } from "~/components/ui/input";
 import { Button } from "~/components/ui/button";
+import type { Response } from "~/types/response";
 import { Confetti } from "~/components/ui/confetti";
 import { Check, AlertTriangle } from "lucide-react";
 import { ButtonGroup } from "~/components/ui/button-group";
 import { useActionState, useEffect, useRef, useState } from "react";
 
-const initialState: Response = {
+const initialState: Response<string, { email: string }> = {
   timestamp: Date.now(),
   error: "",
-  message: "",
   inputs: {
     email: "",
   },

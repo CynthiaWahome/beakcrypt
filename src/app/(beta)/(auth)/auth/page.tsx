@@ -1,11 +1,12 @@
-"use client";
-
 import Link from "next/link";
-import { Github } from "lucide-react";
-import { signIn } from "~/lib/auth-client";
-import { Button } from "~/components/ui/button";
+import { Suspense } from "react";
+import AuthHandler from "./handler";
 
-export default function AuthPage() {
+export default function AuthPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ callbackURL?: string; error?: string }>;
+}) {
   return (
     <main className="flex flex-col gap-6 items-center justify-center min-h-screen max-w-xl mx-auto p-6">
       <Link href="/" className="flex items-center gap-2.5">
@@ -15,17 +16,13 @@ export default function AuthPage() {
         <span className="text-sm font-medium tracking-tight">beakcrypt</span>
       </Link>
 
-      <Button
-        size="lg"
-        variant="outline"
-        className="w-full max-w-sm"
-        onClick={() =>
-          signIn.social({ provider: "github", callbackURL: "/dashboard" })
+      <Suspense
+        fallback={
+          <div className="h-10 w-full max-w-sm bg-muted animate-pulse rounded-md" />
         }
       >
-        <Github className="h-4 w-4" />
-        Continue With GitHub
-      </Button>
+        <AuthHandler searchParamsPromise={searchParams} />
+      </Suspense>
 
       <p className="text-sm text-center text-muted-foreground">
         By continuing, you agree to our Terms of Service and Privacy Policy.
