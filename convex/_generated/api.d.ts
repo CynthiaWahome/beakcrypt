@@ -11,6 +11,7 @@
 import type * as auth from "../auth.js";
 import type * as http from "../http.js";
 import type * as invites from "../invites.js";
+import type * as mail from "../mail.js";
 import type * as organizations from "../organizations.js";
 import type * as waitlists from "../waitlists.js";
 
@@ -24,6 +25,7 @@ declare const fullApi: ApiFromModules<{
   auth: typeof auth;
   http: typeof http;
   invites: typeof invites;
+  mail: typeof mail;
   organizations: typeof organizations;
   waitlists: typeof waitlists;
 }>;
