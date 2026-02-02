@@ -2,40 +2,24 @@
 
 import { z } from "zod/v4";
 import { api } from "conv/_generated/api";
+import type { Response } from "~/types/response";
+import { collectErrorMessages } from "~/lib/utils";
 import { fetchMutation, fetchQuery } from "convex/nextjs";
 
 const emailSchema = z.email("Please enter a valid email address");
 
-export interface SuccessResponse {
-  timestamp: number;
-  message: string;
-  inputs: {
-    email: z.infer<typeof emailSchema>;
-  };
-}
-
-export interface ErrorResponse {
-  timestamp: number;
-  error: string | string[];
-  inputs: {
-    email: z.infer<typeof emailSchema>;
-  };
-}
-
-export type Response = SuccessResponse | ErrorResponse;
-
 export const joinWaitlist = async (
-  _: Response,
+  _: Response<string, { email: string }>,
   formData: FormData,
-): Promise<Response> => {
+): Promise<Response<string, { email: string }>> => {
   const email = formData.get("email");
   const validatedEmail = emailSchema.safeParse(email);
 
   if (!validatedEmail.success) {
+    const messages = collectErrorMessages(z.treeifyError(validatedEmail.error));
+
     return {
-      error:
-        validatedEmail.error.issues[0]?.message ??
-        "Please enter a valid email address",
+      error: messages.join(", "),
       timestamp: Date.now(),
       inputs: {
         email: String(email ?? ""),
@@ -64,6 +48,7 @@ export const joinWaitlist = async (
     return {
       timestamp: Date.now(),
       message: "You've been added to the vault!",
+      data: validatedEmail.data,
       inputs: {
         email: validatedEmail.data,
       },
