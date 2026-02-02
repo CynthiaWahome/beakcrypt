@@ -161,10 +161,10 @@ export default function OnboardingForm() {
     <div className="w-full max-w-md mx-auto">
       <div className="mb-8 flex items-center justify-center gap-2">
         <div
-          className={`h-2 w-16 rounded-full transition-colors duration-300 ${!isOrgCreated ? "bg-blue-500" : "bg-zinc-800"}`}
+          className={`h-2 w-16 rounded-full transition-colors duration-300 ${!isOrgCreated ? "bg-[#5eead4]" : "bg-zinc-800"}`}
         />
         <div
-          className={`h-2 w-16 rounded-full transition-colors duration-300 ${isOrgCreated ? "bg-blue-500" : "bg-zinc-800"}`}
+          className={`h-2 w-16 rounded-full transition-colors duration-300 ${isOrgCreated ? "bg-[#5eead4]" : "bg-zinc-800"}`}
         />
       </div>
 
@@ -175,12 +175,12 @@ export default function OnboardingForm() {
           <CardTitle className="text-xl flex items-center gap-2">
             {!isOrgCreated ? (
               <>
-                <Building2 className="w-5 h-5 text-blue-400" />
+                <Building2 className="w-5 h-5 text-[#5eead4]" />
                 Create Organization
               </>
             ) : (
               <>
-                <UserPlus className="w-5 h-5 text-blue-400" />
+                <UserPlus className="w-5 h-5 text-[#5eead4]" />
                 Invite Member
               </>
             )}
