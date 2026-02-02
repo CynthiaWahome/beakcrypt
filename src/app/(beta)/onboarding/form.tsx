@@ -1,38 +1,38 @@
 "use client";
 
-import { useActionState, useEffect, useState } from "react";
+import {
+  X,
+  Check,
+  Loader2,
+  UserPlus,
+  Building2,
+  ArrowRight,
+} from "lucide-react";
+import {
+  Card,
+  CardTitle,
+  CardHeader,
+  CardContent,
+  CardDescription,
+} from "~/components/ui/card";
+import {
+  InputGroup,
+  InputGroupText,
+  InputGroupAddon,
+  InputGroupInput,
+} from "~/components/ui/input-group";
 import Link from "next/link";
 import { useQuery } from "convex/react";
 import { api } from "conv/_generated/api";
-import { createOrganization, inviteUser } from "./actions";
 import { Input } from "~/components/ui/input";
 import { Button } from "~/components/ui/button";
-import { Confetti } from "~/components/ui/confetti";
 import type { Response } from "~/types/response";
-import type { Doc } from "conv/_generated/dataModel";
-import {
-  Check,
-  X,
-  Loader2,
-  Building2,
-  UserPlus,
-  ArrowRight,
-} from "lucide-react";
-import { validateSlug } from "shared/reserved-slugs";
-import {
-  InputGroup,
-  InputGroupAddon,
-  InputGroupText,
-  InputGroupInput,
-} from "~/components/ui/input-group";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "~/components/ui/card";
 import { Spinner } from "~/components/ui/spinner";
+import { Confetti } from "~/components/ui/confetti";
+import type { Doc } from "conv/_generated/dataModel";
+import { validateSlug } from "shared/reserved-slugs";
+import { createOrganization, inviteUser } from "./actions";
+import { useActionState, useEffect, useState } from "react";
 
 const initialOrgState: Response<
   Doc<"organizations">,
@@ -81,8 +81,11 @@ export default function OnboardingForm() {
     return () => clearTimeout(handler);
   }, [slug]);
 
-  const slugValidation = validateSlug(debouncedSlug);
-  const isSlugInvalid = !slugValidation.valid;
+  const shouldValidateSlug = debouncedSlug.length > 0;
+  const slugValidation = shouldValidateSlug
+    ? validateSlug(debouncedSlug)
+    : { valid: false, error: null };
+  const isSlugInvalid = shouldValidateSlug && !slugValidation.valid;
   const slugError = isSlugInvalid ? slugValidation.error : null;
 
   const isSlugTakenQuery = useQuery(
@@ -90,7 +93,7 @@ export default function OnboardingForm() {
     slugValidation.valid ? { slug: debouncedSlug } : "skip",
   );
 
-  const isSlugTaken = isSlugInvalid || isSlugTakenQuery;
+  const isSlugTaken = shouldValidateSlug && (isSlugInvalid || isSlugTakenQuery);
 
   const [isSkipped, setIsSkipped] = useState(false);
 
