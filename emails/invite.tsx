@@ -36,7 +36,7 @@ export const InviteUserEmail = ({
           presets: [pixelBasedPreset],
         }}
       >
-        <Preview>You've been invited to join {orgName} on Beakcrypt</Preview>
+        <Preview>You&apos;ve been invited to join {orgName} on Beakcrypt</Preview>
         <Body className="bg-gray-50 font-sans py-10">
           <Container className="mx-auto bg-white rounded-3xl max-w-150 px-12 py-12">
             <Section className="text-center">
@@ -73,7 +73,7 @@ export const InviteUserEmail = ({
               </div>
 
               <Text className="text-[14px] text-gray-500 text-center leading-5">
-                Can't see the button? Copy and paste this link into your
+                Can&apos;t see the button? Copy and paste this link into your
                 browser:
               </Text>
               <Text className="text-center mb-8">

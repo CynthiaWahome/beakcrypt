@@ -42,7 +42,7 @@ export const WelcomeEmail = ({ email }: WelcomeEmailProps) => {
               </Text>
 
               <Text className="text-[16px] text-gray-600 mb-6 leading-6">
-                Welcome to Beakcrypt! We're excited to have you on board. You
+                Welcome to Beakcrypt! We&apos;re excited to have you on board. You
                 can now securely manage your environment variables and sync
                 secrets across your team.
               </Text>
