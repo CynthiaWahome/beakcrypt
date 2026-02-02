@@ -36,7 +36,9 @@ export const InviteUserEmail = ({
           presets: [pixelBasedPreset],
         }}
       >
-        <Preview>You&apos;ve been invited to join {orgName} on Beakcrypt</Preview>
+        <Preview>
+          You&apos;ve been invited to join {orgName} on Beakcrypt
+        </Preview>
         <Body className="bg-gray-50 font-sans py-10">
           <Container className="mx-auto bg-white rounded-3xl max-w-150 px-12 py-12">
             <Section className="text-center">
