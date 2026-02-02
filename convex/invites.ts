@@ -103,6 +103,10 @@ export const accept = mutation({
       throw new Error("Unable to perform this action");
     }
 
+    if (invite.email !== user.email) {
+      throw new Error("This invite was sent to a different email address");
+    }
+
     const membership = await ctx.db
       .query("organizationMembers")
       .withIndex("by_org_and_user", (q) =>
@@ -152,6 +156,10 @@ export const decline = mutation({
 
     if (!invite) {
       throw new Error("Invite not found");
+    }
+
+    if (invite.email !== user.email) {
+      throw new Error("This invite was sent to a different email address");
     }
 
     if (invite.status !== "pending") {

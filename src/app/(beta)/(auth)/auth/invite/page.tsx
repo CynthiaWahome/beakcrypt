@@ -12,11 +12,18 @@ import {
   CardDescription,
 } from "~/components/ui/card";
 import Link from "next/link";
-import { Loader2, Check, X, ArrowRight, ShieldCheck, Mail } from "lucide-react";
 import { useState, useEffect, useTransition } from "react";
-import { useSession } from "~/lib/auth-client";
+import { useSession, signOut } from "~/lib/auth-client";
 import { Separator } from "~/components/ui/separator";
 import { Avatar, AvatarFallback, AvatarImage } from "~/components/ui/avatar";
+import {
+  Loader2,
+  Check,
+  X,
+  ShieldCheck,
+  Mail,
+  ShieldAlert,
+} from "lucide-react";
 
 export default function InvitePage() {
   const searchParams = useSearchParams();
@@ -33,6 +40,8 @@ export default function InvitePage() {
   const [actionType, setActionType] = useState<"accept" | "decline" | null>(
     null,
   );
+
+  const [isSignOutPending, setIsSignOutPending] = useState(false);
 
   useEffect(() => {
     if (!isSessionLoading && !session) {
@@ -89,6 +98,49 @@ export default function InvitePage() {
     );
   }
 
+  if (session?.user?.email && invite.email !== session.user.email) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center bg-black text-center p-4">
+        <div className="rounded-full bg-zinc-900 p-3 mb-4">
+          <ShieldAlert className="h-6 w-6 text-red-500" />
+        </div>
+        <h1 className="text-xl font-semibold text-white mb-2">
+          Wrong Email Address
+        </h1>
+        <p className="text-zinc-400 mb-8 max-w-md">
+          This invite was sent to{" "}
+          <span className="text-white">{invite.email}</span>,
+          <br />
+          but you are signed in as{" "}
+          <span className="text-white">{session.user.email}</span>.
+        </p>
+        <Button
+          variant="secondary"
+          disabled={isSignOutPending}
+          onClick={async () => {
+            setIsSignOutPending(true);
+            await signOut({
+              fetchOptions: {
+                onSuccess: () => {
+                  router.push("/auth");
+                },
+              },
+            });
+          }}
+        >
+          {isSignOutPending ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Switching...
+            </>
+          ) : (
+            "Switch Account"
+          )}
+        </Button>
+      </div>
+    );
+  }
+
   const handleAccept = () => {
     setActionType("accept");
     startTransition(async () => {
@@ -130,13 +182,19 @@ export default function InvitePage() {
           <Avatar>
             <AvatarImage src={invite.orgAvatar} />
             <AvatarFallback>
-              {invite.orgName.trim().split(/\s+/).filter(Boolean).length > 1
-                ? parts
-                    .slice(0, 2)
-                    .map((p) => p[0])
-                    .join("")
-                    .toUpperCase()
-                : invite.orgName.slice(0, 2).toUpperCase()}
+              {(() => {
+                const parts = invite.orgName
+                  .trim()
+                  .split(/\s+/)
+                  .filter(Boolean);
+                return parts.length > 1
+                  ? parts
+                      .slice(0, 2)
+                      .map((p) => p[0])
+                      .join("")
+                      .toUpperCase()
+                  : invite.orgName.slice(0, 2).toUpperCase();
+              })()}
             </AvatarFallback>
           </Avatar>
           <CardTitle className="text-2xl">Join Organization</CardTitle>
