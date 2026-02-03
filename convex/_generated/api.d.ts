@@ -9,10 +9,14 @@
  */
 
 import type * as auth from "../auth.js";
+import type * as environments from "../environments.js";
+import type * as github from "../github.js";
 import type * as http from "../http.js";
 import type * as invites from "../invites.js";
 import type * as mail from "../mail.js";
 import type * as organizations from "../organizations.js";
+import type * as projects from "../projects.js";
+import type * as secrets from "../secrets.js";
 import type * as waitlists from "../waitlists.js";
 
 import type {
@@ -23,10 +27,14 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   auth: typeof auth;
+  environments: typeof environments;
+  github: typeof github;
   http: typeof http;
   invites: typeof invites;
   mail: typeof mail;
   organizations: typeof organizations;
+  projects: typeof projects;
+  secrets: typeof secrets;
   waitlists: typeof waitlists;
 }>;
 

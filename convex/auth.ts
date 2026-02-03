@@ -18,6 +18,7 @@ export const createAuth = (ctx: GenericCtx<DataModel>) => {
     socialProviders: {
       github: {
         clientId: process.env.GITHUB_CLIENT_ID!,
+        scope: ["user:email", "read:user", "repo"],
         clientSecret: process.env.GITHUB_CLIENT_SECRET!,
       },
     },

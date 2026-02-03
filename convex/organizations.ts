@@ -56,11 +56,33 @@ export const getBySlug = query({
     slug: v.string(),
   },
   handler: async (ctx, args) => {
-    const existing = await ctx.db
+    const user = await authComponent.getAuthUser(ctx).catch(() => null);
+
+    if (!user) {
+      throw new Error("Unable to perform this action");
+    }
+
+    const organization = await ctx.db
       .query("organizations")
       .withIndex("by_slug", (q) => q.eq("slug", args.slug))
       .first();
-    return existing;
+
+    if (!organization) {
+      throw new Error("Organization not found");
+    }
+
+    const membership = await ctx.db
+      .query("organizationMembers")
+      .withIndex("by_org_and_user", (q) =>
+        q.eq("orgId", organization._id).eq("userId", user._id),
+      )
+      .first();
+
+    if (!membership) {
+      throw new Error("Unable to perform this action");
+    }
+
+    return organization;
   },
 });
 

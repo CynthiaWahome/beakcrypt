@@ -57,4 +57,42 @@ export default defineSchema({
     .index("by_token", ["token"])
     .index("by_email", ["email"])
     .index("by_org_and_status", ["orgId", "status"]),
+
+  projects: defineTable({
+    name: v.string(),
+    createdBy: v.string(),
+    updatedAt: v.number(),
+    orgId: v.id("organizations"),
+    createdAt: v.optional(v.number()),
+    githubRepoId: v.optional(v.number()),
+    githubRepoUrl: v.optional(v.string()),
+    githubRepoName: v.optional(v.string()),
+  })
+    .index("by_name", ["name"])
+    .index("by_org", ["orgId"])
+    .index("by_github_repo", ["githubRepoId"])
+    .index("by_org_and_name", ["orgId", "name"]),
+
+  environments: defineTable({
+    name: v.string(),
+    order: v.number(),
+    updatedAt: v.number(),
+    projectId: v.id("projects"),
+    createdAt: v.optional(v.number()),
+  })
+    .index("by_name", ["name"])
+    .index("by_project", ["projectId"])
+    .index("by_project_and_name", ["projectId", "name"]),
+
+  secrets: defineTable({
+    key: v.string(),
+    createdBy: v.string(),
+    updatedAt: v.number(),
+    encryptedValue: v.string(),
+    createdAt: v.optional(v.number()),
+    environmentId: v.id("environments"),
+  })
+    .index("by_key", ["key"])
+    .index("by_environment", ["environmentId"])
+    .index("by_env_and_key", ["environmentId", "key"]),
 });
