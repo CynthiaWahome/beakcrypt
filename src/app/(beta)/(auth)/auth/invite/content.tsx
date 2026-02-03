@@ -26,6 +26,7 @@ import {
 } from "lucide-react";
 import { Preloaded, usePreloadedQuery } from "convex/react";
 import AppLoader from "~/components/loader";
+import { getInitials } from "~/lib/utils";
 
 interface InviteContentProps {
   preloadedInvite: Preloaded<typeof api.invites.getInvite>;
@@ -162,21 +163,7 @@ export default function InviteContent({
         <CardHeader className="text-center flex flex-col items-center">
           <Avatar>
             <AvatarImage src={invite.orgAvatar} />
-            <AvatarFallback>
-              {(() => {
-                const parts = invite.orgName
-                  .trim()
-                  .split(/\s+/)
-                  .filter(Boolean);
-                return parts.length > 1
-                  ? parts
-                      .slice(0, 2)
-                      .map((p) => p[0])
-                      .join("")
-                      .toUpperCase()
-                  : invite.orgName.slice(0, 2).toUpperCase();
-              })()}
-            </AvatarFallback>
+            <AvatarFallback>{getInitials(invite.orgName)}</AvatarFallback>
           </Avatar>
           <CardTitle className="text-2xl">Join Organization</CardTitle>
           <CardDescription>

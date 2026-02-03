@@ -49,3 +49,14 @@ export function getSafeCallbackURL(url: string | undefined): string {
     return fallback;
   }
 }
+
+export function getInitials(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  return parts.length > 1
+    ? parts
+        .slice(0, 2)
+        .map((p) => p[0])
+        .join("")
+        .toUpperCase()
+    : name.slice(0, 2).toUpperCase();
+}
