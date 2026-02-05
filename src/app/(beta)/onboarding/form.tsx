@@ -24,6 +24,7 @@ import {
 import Link from "next/link";
 import { useQuery } from "convex/react";
 import { api } from "conv/_generated/api";
+import { isSuccess } from "conv/types";
 import { Input } from "~/components/ui/input";
 import { Button } from "~/components/ui/button";
 import type { Response } from "~/types/response";
@@ -96,7 +97,12 @@ export default function OnboardingForm() {
 
   const isSlugCheckLoading =
     slugValidation.valid && isSlugTakenQuery === undefined;
-  const isSlugTaken = shouldValidateSlug && (isSlugInvalid || isSlugTakenQuery);
+  const isSlugTakenResult =
+    isSlugTakenQuery && isSuccess(isSlugTakenQuery)
+      ? isSlugTakenQuery.data
+      : undefined;
+  const isSlugTaken =
+    shouldValidateSlug && (isSlugInvalid || isSlugTakenResult === true);
 
   const [isSkipped, setIsSkipped] = useState(false);
 
@@ -248,9 +254,9 @@ export default function OnboardingForm() {
                   <InputGroupAddon align="inline-end">
                     {slugValidation.valid && isSlugTakenQuery === undefined ? (
                       <Spinner />
-                    ) : isSlugInvalid || isSlugTakenQuery === true ? (
+                    ) : isSlugInvalid || isSlugTakenResult === true ? (
                       <X className="w-4 h-4 text-red-500" />
-                    ) : slugValidation.valid && isSlugTakenQuery === false ? (
+                    ) : slugValidation.valid && isSlugTakenResult === false ? (
                       <Check className="w-4 h-4 text-emerald-500" />
                     ) : null}
                   </InputGroupAddon>
@@ -259,7 +265,7 @@ export default function OnboardingForm() {
                   className={`text-[0.8rem] ${slugError ? "text-red-400" : "text-zinc-500"}`}
                 >
                   {slugError ||
-                    (isSlugTakenQuery === true
+                    (isSlugTakenResult === true
                       ? "This URL is already taken"
                       : "This will be your workspace URL identifier.")}
                 </p>

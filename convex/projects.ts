@@ -1,6 +1,8 @@
 import { v } from "convex/values";
-import { authComponent } from "./auth";
+import type { Doc } from "./_generated/dataModel";
 import { query, mutation } from "./_generated/server";
+import { Result, success, failure, HttpStatus, isFailure } from "./types";
+import { getAuthUser, requireOrgAdmin, requireOrgMember } from "./authHelpers";
 
 const DEFAULT_ENVIRONMENTS = [
   { name: "local", order: 0 },
@@ -17,26 +19,9 @@ export const create = mutation({
     githubRepoUrl: v.optional(v.string()),
     githubRepoName: v.optional(v.string()),
   },
-  handler: async (ctx, args) => {
-    const user = await authComponent.getAuthUser(ctx).catch(() => null);
-    if (!user) {
-      throw new Error("Unable to perform this action");
-    }
-
-    const membership = await ctx.db
-      .query("organizationMembers")
-      .withIndex("by_org_and_user", (q) =>
-        q.eq("orgId", args.orgId).eq("userId", user._id),
-      )
-      .first();
-
-    if (!membership) {
-      throw new Error("You are not a member of this organization");
-    }
-
-    if (membership.role !== "owner" && membership.role !== "admin") {
-      throw new Error("You are not authorized to perform this action");
-    }
+  handler: async (ctx, args): Promise<Result<Doc<"projects">>> => {
+    const authResult = await requireOrgAdmin(ctx, args.orgId);
+    if (isFailure(authResult)) return authResult;
 
     const existing = await ctx.db
       .query("projects")
@@ -46,7 +31,11 @@ export const create = mutation({
       .first();
 
     if (existing) {
-      throw new Error("A project with this name already exists");
+      return failure(
+        HttpStatus.CONFLICT,
+        "project:name_taken",
+        "A project with this name already exists",
+      );
     }
 
     if (args.githubRepoId) {
@@ -58,14 +47,18 @@ export const create = mutation({
         .first();
 
       if (existingRepo) {
-        throw new Error("This repository is already imported");
+        return failure(
+          HttpStatus.CONFLICT,
+          "project:repo_imported",
+          "This repository is already imported",
+        );
       }
     }
 
     const projectId = await ctx.db.insert("projects", {
       name: args.name,
       orgId: args.orgId,
-      createdBy: user._id,
+      createdBy: authResult.data.user._id,
       createdAt: Date.now(),
       updatedAt: Date.now(),
       githubRepoId: args.githubRepoId,
@@ -83,7 +76,16 @@ export const create = mutation({
       });
     }
 
-    return await ctx.db.get(projectId);
+    const project = await ctx.db.get(projectId);
+    if (!project) {
+      return failure(
+        HttpStatus.INTERNAL_SERVER_ERROR,
+        "project:create_failed",
+        "Failed to create project",
+      );
+    }
+
+    return success(project, HttpStatus.CREATED);
   },
 });
 
@@ -92,22 +94,9 @@ export const getByName = query({
     name: v.string(),
     orgId: v.id("organizations"),
   },
-  handler: async (ctx, args) => {
-    const user = await authComponent.getAuthUser(ctx).catch(() => null);
-    if (!user) {
-      throw new Error("Unable to perform this action");
-    }
-
-    const membership = await ctx.db
-      .query("organizationMembers")
-      .withIndex("by_org_and_user", (q) =>
-        q.eq("orgId", args.orgId).eq("userId", user._id),
-      )
-      .first();
-
-    if (!membership) {
-      throw new Error("You are not a member of this organization");
-    }
+  handler: async (ctx, args): Promise<Result<Doc<"projects">>> => {
+    const authResult = await requireOrgMember(ctx, args.orgId);
+    if (isFailure(authResult)) return authResult;
 
     const project = await ctx.db
       .query("projects")
@@ -115,7 +104,16 @@ export const getByName = query({
         q.eq("orgId", args.orgId).eq("name", args.name),
       )
       .first();
-    return project;
+
+    if (!project) {
+      return failure(
+        HttpStatus.NOT_FOUND,
+        "project:not_found",
+        "Project not found",
+      );
+    }
+
+    return success(project);
   },
 });
 
@@ -124,11 +122,9 @@ export const getBySlugAndName = query({
     orgSlug: v.string(),
     name: v.string(),
   },
-  handler: async (ctx, args) => {
-    const user = await authComponent.getAuthUser(ctx).catch(() => null);
-    if (!user) {
-      throw new Error("Unable to perform this action");
-    }
+  handler: async (ctx, args): Promise<Result<Doc<"projects">>> => {
+    const userResult = await getAuthUser(ctx);
+    if (isFailure(userResult)) return userResult;
 
     const org = await ctx.db
       .query("organizations")
@@ -136,19 +132,15 @@ export const getBySlugAndName = query({
       .first();
 
     if (!org) {
-      return null;
+      return failure(
+        HttpStatus.NOT_FOUND,
+        "org:not_found",
+        "Organization not found",
+      );
     }
 
-    const membership = await ctx.db
-      .query("organizationMembers")
-      .withIndex("by_org_and_user", (q) =>
-        q.eq("orgId", org._id).eq("userId", user._id),
-      )
-      .first();
-
-    if (!membership) {
-      throw new Error("You are not a member of this organization");
-    }
+    const authResult = await requireOrgMember(ctx, org._id);
+    if (isFailure(authResult)) return authResult;
 
     const project = await ctx.db
       .query("projects")
@@ -157,7 +149,15 @@ export const getBySlugAndName = query({
       )
       .first();
 
-    return project;
+    if (!project) {
+      return failure(
+        HttpStatus.NOT_FOUND,
+        "project:not_found",
+        "Project not found",
+      );
+    }
+
+    return success(project);
   },
 });
 
@@ -166,22 +166,9 @@ export const checkName = query({
     orgId: v.id("organizations"),
     name: v.string(),
   },
-  handler: async (ctx, args) => {
-    const user = await authComponent.getAuthUser(ctx).catch(() => null);
-    if (!user) {
-      throw new Error("Unable to perform this action");
-    }
-
-    const membership = await ctx.db
-      .query("organizationMembers")
-      .withIndex("by_org_and_user", (q) =>
-        q.eq("orgId", args.orgId).eq("userId", user._id),
-      )
-      .first();
-
-    if (!membership) {
-      throw new Error("You are not a member of this organization");
-    }
+  handler: async (ctx, args): Promise<Result<boolean>> => {
+    const authResult = await requireOrgMember(ctx, args.orgId);
+    if (isFailure(authResult)) return authResult;
 
     const existing = await ctx.db
       .query("projects")
@@ -189,7 +176,8 @@ export const checkName = query({
         q.eq("orgId", args.orgId).eq("name", args.name),
       )
       .first();
-    return !!existing;
+
+    return success(!!existing);
   },
 });
 
@@ -197,29 +185,16 @@ export const list = query({
   args: {
     orgId: v.id("organizations"),
   },
-  handler: async (ctx, args) => {
-    const user = await authComponent.getAuthUser(ctx).catch(() => null);
-    if (!user) {
-      return [];
-    }
-
-    const membership = await ctx.db
-      .query("organizationMembers")
-      .withIndex("by_org_and_user", (q) =>
-        q.eq("orgId", args.orgId).eq("userId", user._id),
-      )
-      .first();
-
-    if (!membership) {
-      return [];
-    }
+  handler: async (ctx, args): Promise<Result<Doc<"projects">[]>> => {
+    const authResult = await requireOrgMember(ctx, args.orgId);
+    if (isFailure(authResult)) return authResult;
 
     const projects = await ctx.db
       .query("projects")
       .withIndex("by_org", (q) => q.eq("orgId", args.orgId))
       .collect();
 
-    return projects;
+    return success(projects);
   },
 });
 
@@ -228,31 +203,21 @@ export const update = mutation({
     id: v.id("projects"),
     name: v.string(),
   },
-  handler: async (ctx, args) => {
-    const user = await authComponent.getAuthUser(ctx).catch(() => null);
-    if (!user) {
-      throw new Error("Unable to perform this action");
-    }
+  handler: async (ctx, args): Promise<Result<Doc<"projects">>> => {
+    const userResult = await getAuthUser(ctx);
+    if (isFailure(userResult)) return userResult;
 
     const project = await ctx.db.get(args.id);
     if (!project) {
-      throw new Error("Project not found");
+      return failure(
+        HttpStatus.NOT_FOUND,
+        "project:not_found",
+        "Project not found",
+      );
     }
 
-    const membership = await ctx.db
-      .query("organizationMembers")
-      .withIndex("by_org_and_user", (q) =>
-        q.eq("orgId", project.orgId).eq("userId", user._id),
-      )
-      .first();
-
-    if (!membership) {
-      throw new Error("You are not a member of this organization");
-    }
-
-    if (membership.role !== "owner" && membership.role !== "admin") {
-      throw new Error("You are not authorized to perform this action");
-    }
+    const authResult = await requireOrgAdmin(ctx, project.orgId);
+    if (isFailure(authResult)) return authResult;
 
     const existing = await ctx.db
       .query("projects")
@@ -262,7 +227,11 @@ export const update = mutation({
       .first();
 
     if (existing && existing._id !== args.id) {
-      throw new Error("A project with this name already exists");
+      return failure(
+        HttpStatus.CONFLICT,
+        "project:name_taken",
+        "A project with this name already exists",
+      );
     }
 
     await ctx.db.patch(args.id, {
@@ -270,7 +239,16 @@ export const update = mutation({
       updatedAt: Date.now(),
     });
 
-    return await ctx.db.get(args.id);
+    const updated = await ctx.db.get(args.id);
+    if (!updated) {
+      return failure(
+        HttpStatus.INTERNAL_SERVER_ERROR,
+        "project:update_failed",
+        "Failed to update project",
+      );
+    }
+
+    return success(updated);
   },
 });
 
@@ -278,30 +256,21 @@ export const remove = mutation({
   args: {
     id: v.id("projects"),
   },
-  handler: async (ctx, args) => {
-    const user = await authComponent.getAuthUser(ctx).catch(() => null);
-    if (!user) {
-      throw new Error("Unable to perform this action");
-    }
+  handler: async (ctx, args): Promise<Result<{ deleted: true }>> => {
+    const userResult = await getAuthUser(ctx);
+    if (isFailure(userResult)) return userResult;
 
     const project = await ctx.db.get(args.id);
     if (!project) {
-      throw new Error("Project not found");
+      return failure(
+        HttpStatus.NOT_FOUND,
+        "project:not_found",
+        "Project not found",
+      );
     }
 
-    const membership = await ctx.db
-      .query("organizationMembers")
-      .withIndex("by_org_and_user", (q) =>
-        q.eq("orgId", project.orgId).eq("userId", user._id),
-      )
-      .first();
-
-    if (
-      !membership ||
-      (membership.role !== "owner" && membership.role !== "admin")
-    ) {
-      throw new Error("Only owners and admins can delete projects");
-    }
+    const authResult = await requireOrgAdmin(ctx, project.orgId);
+    if (isFailure(authResult)) return authResult;
 
     const environments = await ctx.db
       .query("environments")
@@ -323,6 +292,6 @@ export const remove = mutation({
 
     await ctx.db.delete(args.id);
 
-    return { success: true };
+    return success({ deleted: true });
   },
 });

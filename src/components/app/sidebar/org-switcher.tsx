@@ -19,9 +19,10 @@ import Link from "next/link";
 import { api } from "conv/_generated/api";
 import { getInitials } from "~/lib/utils";
 import { ChevronsUpDown, Plus } from "lucide-react";
-import { useParams, notFound } from "next/navigation";
 import { useConvexAuth, useQuery } from "convex/react";
 import OrgSwitcherSkeleton from "./org-switcher-skeleton";
+import { isFailure, isSuccess, HttpStatus } from "conv/types";
+import { redirect, useParams, notFound } from "next/navigation";
 import { Avatar, AvatarFallback, AvatarImage } from "~/components/ui/avatar";
 
 export default function OrgSwitcher() {
@@ -29,28 +30,44 @@ export default function OrgSwitcher() {
   const { slug } = useParams<{ slug: string }>();
   const { isAuthenticated, isLoading } = useConvexAuth();
 
-  const activeOrg = useQuery(
+  const activeOrgResult = useQuery(
     api.organizations.getBySlug,
     isAuthenticated ? { slug } : "skip",
   );
-  const orgs = useQuery(
+  const orgsResult = useQuery(
     api.organizations.list,
     isAuthenticated ? {} : "skip",
   );
 
-  if (isLoading || activeOrg === undefined || orgs === undefined) {
+  if (isLoading || activeOrgResult === undefined || orgsResult === undefined) {
     return <OrgSwitcherSkeleton />;
   }
 
-  if (!activeOrg) {
-    notFound();
+  if (!isAuthenticated) {
+    redirect("/auth");
   }
+
+  if (isFailure(activeOrgResult)) {
+    if (
+      activeOrgResult.status === HttpStatus.NOT_FOUND ||
+      activeOrgResult.status === HttpStatus.FORBIDDEN
+    ) {
+      notFound();
+    }
+
+    return null;
+  }
+
+  if (isFailure(orgsResult)) {
+    return null;
+  }
+
+  const activeOrg = activeOrgResult.data;
+  const orgs = orgsResult.data;
 
   return (
     <SidebarMenu>
       <SidebarMenuItem>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
             <SidebarMenuButton
               size="lg"
               className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
@@ -58,16 +75,15 @@ export default function OrgSwitcher() {
               <div className="flex items-center justify-center">
                 <Avatar>
                   <AvatarImage src={activeOrg.avatar} />
-                  <AvatarFallback>
-                    {getInitials(activeOrg.name)}
-                  </AvatarFallback>
+                  <AvatarFallback>{getInitials(activeOrg.name)}</AvatarFallback>
                 </Avatar>
               </div>
               <div className="grid flex-1 text-left text-sm leading-tight">
                 <span className="truncate font-medium">{activeOrg.name}</span>
               </div>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
               <ChevronsUpDown className="ml-auto" />
-            </SidebarMenuButton>
           </DropdownMenuTrigger>
           <DropdownMenuContent
             className="w-(--radix-dropdown-menu-trigger-width) min-w-56 rounded-lg"
@@ -105,6 +121,7 @@ export default function OrgSwitcher() {
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
+            </SidebarMenuButton>
       </SidebarMenuItem>
     </SidebarMenu>
   );

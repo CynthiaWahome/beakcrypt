@@ -1,6 +1,7 @@
 import { api } from "conv/_generated/api";
-import { fetchQuery } from "convex/nextjs";
 import { notFound } from "next/navigation";
+import { isFailure, HttpStatus } from "conv/types";
+import { fetchAuthQuery } from "~/lib/auth-server";
 
 export default async function OrganizationHandler({
   paramsPromise,
@@ -8,10 +9,15 @@ export default async function OrganizationHandler({
   paramsPromise: Promise<{ slug: string }>;
 }) {
   const { slug } = await paramsPromise;
-  const organization = await fetchQuery(api.organizations.getBySlug, { slug });
+  const organization = await fetchAuthQuery(api.organizations.getBySlug, {
+    slug,
+  });
 
-  if (!organization) {
-    return notFound();
+  if (isFailure(organization)) {
+    if (organization.status === HttpStatus.NOT_FOUND) {
+      return notFound();
+    }
+    return null;
   }
 
   return (
@@ -20,14 +26,14 @@ export default async function OrganizationHandler({
       <div className="z-10 animate-in fade-in slide-in-from-bottom-8 duration-1000 ease-out">
         <h1 className="text-5xl font-extrabold tracking-tighter sm:text-7xl">
           <span className="bg-linear-to-b from-white to-white/60 bg-clip-text text-transparent">
-            {organization.name}
+            {organization.data.name}
           </span>
         </h1>
       </div>
 
       <div className="z-10 mt-6 animate-in fade-in slide-in-from-bottom-4 duration-1000 delay-300 ease-out fill-mode-backwards">
         <div className="rounded-full bg-zinc-900/50 px-4 py-1.5 text-sm text-zinc-500 ring-1 ring-zinc-800 backdrop-blur-md">
-          /{organization.slug}
+          /{organization.data.slug}
         </div>
       </div>
     </div>

@@ -9,6 +9,7 @@
  */
 
 import type * as auth from "../auth.js";
+import type * as authHelpers from "../authHelpers.js";
 import type * as environments from "../environments.js";
 import type * as github from "../github.js";
 import type * as http from "../http.js";
@@ -17,6 +18,7 @@ import type * as mail from "../mail.js";
 import type * as organizations from "../organizations.js";
 import type * as projects from "../projects.js";
 import type * as secrets from "../secrets.js";
+import type * as types from "../types.js";
 import type * as waitlists from "../waitlists.js";
 
 import type {
@@ -27,6 +29,7 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   auth: typeof auth;
+  authHelpers: typeof authHelpers;
   environments: typeof environments;
   github: typeof github;
   http: typeof http;
@@ -35,6 +38,7 @@ declare const fullApi: ApiFromModules<{
   organizations: typeof organizations;
   projects: typeof projects;
   secrets: typeof secrets;
+  types: typeof types;
   waitlists: typeof waitlists;
 }>;
 

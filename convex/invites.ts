@@ -1,8 +1,10 @@
 import { roles } from "./schema";
 import { v } from "convex/values";
-import { authComponent } from "./auth";
 import { internal } from "./_generated/api";
+import type { Doc } from "./_generated/dataModel";
 import { mutation, query } from "./_generated/server";
+import { Result, success, failure, HttpStatus, isFailure } from "./types";
+import { getAuthUser, requireOrgAdmin } from "./authHelpers";
 
 export const create = mutation({
   args: {
@@ -12,26 +14,11 @@ export const create = mutation({
     token: v.string(),
     expiresAt: v.number(),
   },
-  handler: async (ctx, args) => {
-    const user = await authComponent.getAuthUser(ctx).catch(() => null);
-    if (!user) {
-      throw new Error("Unable to perform this action");
-    }
+  handler: async (ctx, args): Promise<Result<Doc<"invites">>> => {
+    const authResult = await requireOrgAdmin(ctx, args.orgId);
+    if (isFailure(authResult)) return authResult;
 
-    const membership = await ctx.db
-      .query("organizationMembers")
-      .withIndex("by_org_and_user", (q) =>
-        q.eq("orgId", args.orgId).eq("userId", user._id),
-      )
-      .first();
-
-    if (!membership) {
-      throw new Error("Not a member of this organization");
-    }
-
-    if (membership.role !== "owner" && membership.role !== "admin") {
-      throw new Error("Insufficient permissions to invite members");
-    }
+    const { user } = authResult.data;
 
     const existingInvite = await ctx.db
       .query("invites")
@@ -40,7 +27,11 @@ export const create = mutation({
       .first();
 
     if (existingInvite && existingInvite.status === "pending") {
-      throw new Error("A pending invite already exists for this email");
+      return failure(
+        HttpStatus.CONFLICT,
+        "invite:already_exists",
+        "A pending invite already exists for this email",
+      );
     }
 
     const inviteId = await ctx.db.insert("invites", {
@@ -69,10 +60,14 @@ export const create = mutation({
     const invite = await ctx.db.get(inviteId);
 
     if (!invite) {
-      throw new Error("Invite not found");
+      return failure(
+        HttpStatus.INTERNAL_SERVER_ERROR,
+        "invite:create_failed",
+        "Failed to create invite",
+      );
     }
 
-    return invite;
+    return success(invite, HttpStatus.CREATED);
   },
 });
 
@@ -80,31 +75,47 @@ export const accept = mutation({
   args: {
     token: v.string(),
   },
-  handler: async (ctx, args) => {
+  handler: async (ctx, args): Promise<Result<Doc<"organizations">>> => {
     const invite = await ctx.db
       .query("invites")
       .withIndex("by_token", (q) => q.eq("token", args.token))
       .first();
 
     if (!invite) {
-      throw new Error("Invite not found");
+      return failure(
+        HttpStatus.NOT_FOUND,
+        "invite:not_found",
+        "Invite not found",
+      );
     }
 
     if (invite.status !== "pending") {
-      throw new Error("Invite is no longer valid");
+      return failure(
+        HttpStatus.BAD_REQUEST,
+        "invite:invalid",
+        "Invite is no longer valid",
+      );
     }
 
     if (invite.expiresAt < Date.now()) {
-      throw new Error("Invite has expired");
+      return failure(
+        HttpStatus.BAD_REQUEST,
+        "invite:expired",
+        "Invite has expired",
+      );
     }
 
-    const user = await authComponent.getAuthUser(ctx).catch(() => null);
-    if (!user) {
-      throw new Error("Unable to perform this action");
-    }
+    const userResult = await getAuthUser(ctx);
+    if (isFailure(userResult)) return userResult;
+
+    const user = userResult.data;
 
     if (invite.email !== user.email) {
-      throw new Error("This invite was sent to a different email address");
+      return failure(
+        HttpStatus.FORBIDDEN,
+        "invite:email_mismatch",
+        "This invite was sent to a different email address",
+      );
     }
 
     const membership = await ctx.db
@@ -115,7 +126,11 @@ export const accept = mutation({
       .first();
 
     if (membership) {
-      throw new Error("You are already a member of this organization");
+      return failure(
+        HttpStatus.CONFLICT,
+        "invite:already_member",
+        "You are already a member of this organization",
+      );
     }
 
     await ctx.db.insert("organizationMembers", {
@@ -132,9 +147,15 @@ export const accept = mutation({
     });
 
     const org = await ctx.db.get(invite.orgId);
-    if (!org) throw new Error("Organization not found");
+    if (!org) {
+      return failure(
+        HttpStatus.NOT_FOUND,
+        "org:not_found",
+        "Organization not found",
+      );
+    }
 
-    return org.slug;
+    return success(org);
   },
 });
 
@@ -142,12 +163,11 @@ export const decline = mutation({
   args: {
     token: v.string(),
   },
-  handler: async (ctx, args) => {
-    const user = await authComponent.getAuthUser(ctx).catch(() => null);
+  handler: async (ctx, args): Promise<Result<Doc<"invites">>> => {
+    const userResult = await getAuthUser(ctx);
+    if (isFailure(userResult)) return userResult;
 
-    if (!user) {
-      throw new Error("Unable to perform this action");
-    }
+    const user = userResult.data;
 
     const invite = await ctx.db
       .query("invites")
@@ -155,19 +175,35 @@ export const decline = mutation({
       .first();
 
     if (!invite) {
-      throw new Error("Invite not found");
+      return failure(
+        HttpStatus.NOT_FOUND,
+        "invite:not_found",
+        "Invite not found",
+      );
     }
 
     if (invite.email !== user.email) {
-      throw new Error("This invite was sent to a different email address");
+      return failure(
+        HttpStatus.FORBIDDEN,
+        "invite:email_mismatch",
+        "This invite was sent to a different email address",
+      );
     }
 
     if (invite.status !== "pending") {
-      throw new Error("Invite is no longer valid");
+      return failure(
+        HttpStatus.BAD_REQUEST,
+        "invite:invalid",
+        "Invite is no longer valid",
+      );
     }
 
     if (invite.expiresAt < Date.now()) {
-      throw new Error("Invite has expired");
+      return failure(
+        HttpStatus.BAD_REQUEST,
+        "invite:expired",
+        "Invite has expired",
+      );
     }
 
     await ctx.db.patch(invite._id, {
@@ -175,7 +211,17 @@ export const decline = mutation({
       updatedAt: Date.now(),
     });
 
-    return invite.orgId;
+    const updatedInvite = await ctx.db.get(invite._id);
+
+    if (!updatedInvite) {
+      return failure(
+        HttpStatus.INTERNAL_SERVER_ERROR,
+        "invite:update_failed",
+        "Failed to decline invite",
+      );
+    }
+
+    return success(updatedInvite);
   },
 });
 
@@ -183,7 +229,15 @@ export const getInvite = query({
   args: {
     token: v.string(),
   },
-  handler: async (ctx, args) => {
+  handler: async (
+    ctx,
+    args,
+  ): Promise<
+    Result<{
+      invite: Doc<"invites">;
+      organization: Doc<"organizations">;
+    }>
+  > => {
     const invite = await ctx.db
       .query("invites")
       .withIndex("by_token", (q) => q.eq("token", args.token))
@@ -194,18 +248,25 @@ export const getInvite = query({
       invite.status !== "pending" ||
       invite.expiresAt < Date.now()
     ) {
-      return null;
+      return failure(
+        HttpStatus.BAD_REQUEST,
+        "invite:invalid",
+        "Invite is no longer valid",
+      );
     }
 
     const org = await ctx.db.get(invite.orgId);
-    if (!org) return null;
+    if (!org) {
+      return failure(
+        HttpStatus.NOT_FOUND,
+        "organization:not_found",
+        "Organization not found",
+      );
+    }
 
-    return {
-      orgName: org.name,
-      orgSlug: org.slug,
-      role: invite.role,
-      email: invite.email,
-      orgAvatar: org.avatar,
-    };
+    return success({
+      invite,
+      organization: org,
+    });
   },
 });

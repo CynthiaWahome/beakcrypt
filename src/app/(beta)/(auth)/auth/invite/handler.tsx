@@ -3,6 +3,7 @@ import { X } from "lucide-react";
 import InviteContent from "./content";
 import { redirect } from "next/navigation";
 import { api } from "conv/_generated/api";
+import { isSuccess } from "conv/types";
 import { Button } from "~/components/ui/button";
 import { preloadedQueryResult } from "convex/nextjs";
 import { isAuthenticated, preloadAuthQuery } from "~/lib/auth-server";
@@ -76,9 +77,9 @@ export default async function InviteHandler({
     token,
   });
 
-  const invite = preloadedQueryResult(preloadedInvite);
+  const inviteResult = preloadedQueryResult(preloadedInvite);
 
-  if (invite === null) {
+  if (!isSuccess(inviteResult) || inviteResult.data === null) {
     return <InviteNotFoundState />;
   }
 

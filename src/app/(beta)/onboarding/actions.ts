@@ -5,6 +5,7 @@ import { api } from "conv/_generated/api";
 import type { Response } from "~/types/response";
 import { collectErrorMessages } from "~/lib/utils";
 import { validateSlug } from "shared/reserved-slugs";
+import { isFailure } from "conv/types";
 import type { Doc, Id } from "conv/_generated/dataModel";
 import { isAuthenticated, fetchAuthMutation } from "~/lib/auth-server";
 
@@ -55,25 +56,14 @@ export const createOrganization = async (
     };
   }
 
-  try {
-    const organization = await fetchAuthMutation(api.organizations.create, {
-      name: validatedData.data.name,
-      slug: validatedData.data.slug,
-    });
+  const result = await fetchAuthMutation(api.organizations.create, {
+    name: validatedData.data.name,
+    slug: validatedData.data.slug,
+  });
 
+  if (isFailure(result)) {
     return {
-      timestamp: Date.now(),
-      message: "Organization created successfully!",
-      data: organization,
-      inputs: {
-        name: validatedData.data.name,
-        slug: validatedData.data.slug,
-      },
-    };
-  } catch (err) {
-    console.error(err);
-    return {
-      error: "Oops, something went wrong. Please try again.",
+      error: result.error,
       timestamp: Date.now(),
       inputs: {
         name: validatedData.data.name,
@@ -81,6 +71,16 @@ export const createOrganization = async (
       },
     };
   }
+
+  return {
+    timestamp: Date.now(),
+    message: "Organization created successfully!",
+    data: result.data,
+    inputs: {
+      name: validatedData.data.name,
+      slug: validatedData.data.slug,
+    },
+  };
 };
 
 const inviteUserSchema = z.object({
@@ -148,29 +148,17 @@ export const inviteUser = async (
 
   const token = crypto.randomUUID();
 
-  try {
-    const invite = await fetchAuthMutation(api.invites.create, {
-      token,
-      role: validatedData.data.role,
-      email: validatedData.data.email,
-      orgId: validatedData.data.orgId,
-      expiresAt: Date.now() + 7 * 24 * 60 * 60 * 1000,
-    });
+  const result = await fetchAuthMutation(api.invites.create, {
+    token,
+    role: validatedData.data.role,
+    email: validatedData.data.email,
+    orgId: validatedData.data.orgId,
+    expiresAt: Date.now() + 7 * 24 * 60 * 60 * 1000,
+  });
 
+  if (isFailure(result)) {
     return {
-      timestamp: Date.now(),
-      message: "Invite sent successfully!",
-      data: invite,
-      inputs: {
-        role: validatedData.data.role,
-        email: validatedData.data.email,
-        orgId: validatedData.data.orgId,
-        orgName: validatedData.data.orgName,
-      },
-    };
-  } catch (err) {
-    return {
-      error: Error.isError(err) ? err.message : "Oops, something went wrong.",
+      error: result.error,
       timestamp: Date.now(),
       inputs: {
         role: validatedData.data.role,
@@ -180,4 +168,16 @@ export const inviteUser = async (
       },
     };
   }
+
+  return {
+    timestamp: Date.now(),
+    message: "Invite sent successfully!",
+    data: result.data,
+    inputs: {
+      role: validatedData.data.role,
+      email: validatedData.data.email,
+      orgId: validatedData.data.orgId,
+      orgName: validatedData.data.orgName,
+    },
+  };
 };

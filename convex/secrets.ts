@@ -1,37 +1,37 @@
 import { v } from "convex/values";
-import { authComponent } from "./auth";
+import type { Doc } from "./_generated/dataModel";
 import { query, mutation } from "./_generated/server";
+import { Result, success, failure, HttpStatus, isFailure } from "./types";
+import { getAuthUser, requireOrgAdmin, requireOrgMember } from "./authHelpers";
 
 export const list = query({
   args: {
     environmentId: v.id("environments"),
   },
-  handler: async (ctx, args) => {
-    const user = await authComponent.getAuthUser(ctx).catch(() => null);
-    if (!user) {
-      return [];
-    }
+  handler: async (ctx, args): Promise<Result<Doc<"secrets">[]>> => {
+    const userResult = await getAuthUser(ctx);
+    if (isFailure(userResult)) return userResult;
 
     const environment = await ctx.db.get(args.environmentId);
     if (!environment) {
-      return [];
+      return failure(
+        HttpStatus.NOT_FOUND,
+        "env:not_found",
+        "Environment not found",
+      );
     }
 
     const project = await ctx.db.get(environment.projectId);
     if (!project) {
-      return [];
+      return failure(
+        HttpStatus.NOT_FOUND,
+        "project:not_found",
+        "Project not found",
+      );
     }
 
-    const membership = await ctx.db
-      .query("organizationMembers")
-      .withIndex("by_org_and_user", (q) =>
-        q.eq("orgId", project.orgId).eq("userId", user._id),
-      )
-      .first();
-
-    if (!membership) {
-      return [];
-    }
+    const authResult = await requireOrgMember(ctx, project.orgId);
+    if (isFailure(authResult)) return authResult;
 
     const secrets = await ctx.db
       .query("secrets")
@@ -40,7 +40,7 @@ export const list = query({
       )
       .collect();
 
-    return secrets;
+    return success(secrets);
   },
 });
 
@@ -50,36 +50,30 @@ export const create = mutation({
     key: v.string(),
     encryptedValue: v.string(),
   },
-  handler: async (ctx, args) => {
-    const user = await authComponent.getAuthUser(ctx).catch(() => null);
-    if (!user) {
-      throw new Error("Unable to perform this action");
-    }
+  handler: async (ctx, args): Promise<Result<Doc<"secrets">>> => {
+    const userResult = await getAuthUser(ctx);
+    if (isFailure(userResult)) return userResult;
 
     const environment = await ctx.db.get(args.environmentId);
     if (!environment) {
-      throw new Error("Environment not found");
+      return failure(
+        HttpStatus.NOT_FOUND,
+        "env:not_found",
+        "Environment not found",
+      );
     }
 
     const project = await ctx.db.get(environment.projectId);
     if (!project) {
-      throw new Error("Project not found");
+      return failure(
+        HttpStatus.NOT_FOUND,
+        "project:not_found",
+        "Project not found",
+      );
     }
 
-    const membership = await ctx.db
-      .query("organizationMembers")
-      .withIndex("by_org_and_user", (q) =>
-        q.eq("orgId", project.orgId).eq("userId", user._id),
-      )
-      .first();
-
-    if (!membership) {
-      throw new Error("You are not a member of this organization");
-    }
-
-    if (membership.role !== "owner" && membership.role !== "admin") {
-      throw new Error("You are not authorized to perform this action");
-    }
+    const authResult = await requireOrgAdmin(ctx, project.orgId);
+    if (isFailure(authResult)) return authResult;
 
     const existing = await ctx.db
       .query("secrets")
@@ -89,19 +83,32 @@ export const create = mutation({
       .first();
 
     if (existing) {
-      throw new Error("A secret with this key already exists");
+      return failure(
+        HttpStatus.CONFLICT,
+        "secret:key_taken",
+        "A secret with this key already exists",
+      );
     }
 
     const secretId = await ctx.db.insert("secrets", {
       key: args.key,
       encryptedValue: args.encryptedValue,
       environmentId: args.environmentId,
-      createdBy: user._id,
+      createdBy: authResult.data.user._id,
       createdAt: Date.now(),
       updatedAt: Date.now(),
     });
 
-    return await ctx.db.get(secretId);
+    const secret = await ctx.db.get(secretId);
+    if (!secret) {
+      return failure(
+        HttpStatus.INTERNAL_SERVER_ERROR,
+        "secret:create_failed",
+        "Failed to create secret",
+      );
+    }
+
+    return success(secret, HttpStatus.CREATED);
   },
 });
 
@@ -111,52 +118,55 @@ export const update = mutation({
     key: v.optional(v.string()),
     encryptedValue: v.optional(v.string()),
   },
-  handler: async (ctx, args) => {
-    const user = await authComponent.getAuthUser(ctx).catch(() => null);
-    if (!user) {
-      throw new Error("Unable to perform this action");
-    }
+  handler: async (ctx, args): Promise<Result<Doc<"secrets">>> => {
+    const userResult = await getAuthUser(ctx);
+    if (isFailure(userResult)) return userResult;
 
     const secret = await ctx.db.get(args.id);
     if (!secret) {
-      throw new Error("Secret not found");
+      return failure(
+        HttpStatus.NOT_FOUND,
+        "secret:not_found",
+        "Secret not found",
+      );
     }
 
     const environment = await ctx.db.get(secret.environmentId);
     if (!environment) {
-      throw new Error("Environment not found");
+      return failure(
+        HttpStatus.NOT_FOUND,
+        "env:not_found",
+        "Environment not found",
+      );
     }
 
     const project = await ctx.db.get(environment.projectId);
     if (!project) {
-      throw new Error("Project not found");
+      return failure(
+        HttpStatus.NOT_FOUND,
+        "project:not_found",
+        "Project not found",
+      );
     }
 
-    const membership = await ctx.db
-      .query("organizationMembers")
-      .withIndex("by_org_and_user", (q) =>
-        q.eq("orgId", project.orgId).eq("userId", user._id),
-      )
-      .first();
-
-    if (!membership) {
-      throw new Error("You are not a member of this organization");
-    }
-
-    if (membership.role !== "owner" && membership.role !== "admin") {
-      throw new Error("You are not authorized to perform this action");
-    }
+    const authResult = await requireOrgAdmin(ctx, project.orgId);
+    if (isFailure(authResult)) return authResult;
 
     if (args.key && args.key !== secret.key) {
+      const newKey = args.key;
       const existing = await ctx.db
         .query("secrets")
         .withIndex("by_env_and_key", (q) =>
-          q.eq("environmentId", secret.environmentId).eq("key", args.key!),
+          q.eq("environmentId", secret.environmentId).eq("key", newKey),
         )
         .first();
 
       if (existing) {
-        throw new Error("A secret with this key already exists");
+        return failure(
+          HttpStatus.CONFLICT,
+          "secret:key_taken",
+          "A secret with this key already exists",
+        );
       }
     }
 
@@ -168,7 +178,16 @@ export const update = mutation({
       updatedAt: Date.now(),
     });
 
-    return await ctx.db.get(args.id);
+    const updated = await ctx.db.get(args.id);
+    if (!updated) {
+      return failure(
+        HttpStatus.INTERNAL_SERVER_ERROR,
+        "secret:update_failed",
+        "Failed to update secret",
+      );
+    }
+
+    return success(updated);
   },
 });
 
@@ -176,47 +195,51 @@ export const remove = mutation({
   args: {
     id: v.id("secrets"),
   },
-  handler: async (ctx, args) => {
-    const user = await authComponent.getAuthUser(ctx).catch(() => null);
-    if (!user) {
-      throw new Error("Unable to perform this action");
-    }
+  handler: async (ctx, args): Promise<Result<{ deleted: true }>> => {
+    const userResult = await getAuthUser(ctx);
+    if (isFailure(userResult)) return userResult;
 
     const secret = await ctx.db.get(args.id);
     if (!secret) {
-      throw new Error("Secret not found");
+      return failure(
+        HttpStatus.NOT_FOUND,
+        "secret:not_found",
+        "Secret not found",
+      );
     }
 
     const environment = await ctx.db.get(secret.environmentId);
     if (!environment) {
-      throw new Error("Environment not found");
+      return failure(
+        HttpStatus.NOT_FOUND,
+        "env:not_found",
+        "Environment not found",
+      );
     }
 
     const project = await ctx.db.get(environment.projectId);
     if (!project) {
-      throw new Error("Project not found");
+      return failure(
+        HttpStatus.NOT_FOUND,
+        "project:not_found",
+        "Project not found",
+      );
     }
 
-    const membership = await ctx.db
-      .query("organizationMembers")
-      .withIndex("by_org_and_user", (q) =>
-        q.eq("orgId", project.orgId).eq("userId", user._id),
-      )
-      .first();
-
-    if (!membership) {
-      throw new Error("You are not a member of this organization");
-    }
-
-    if (membership.role !== "owner" && membership.role !== "admin") {
-      throw new Error("You are not authorized to perform this action");
-    }
+    const authResult = await requireOrgAdmin(ctx, project.orgId);
+    if (isFailure(authResult)) return authResult;
 
     await ctx.db.delete(args.id);
 
-    return { success: true };
+    return success({ deleted: true });
   },
 });
+
+type BulkCreateResult = {
+  created: number;
+  updated: number;
+  skipped: number;
+};
 
 export const bulkCreate = mutation({
   args: {
@@ -229,38 +252,32 @@ export const bulkCreate = mutation({
     ),
     overwrite: v.optional(v.boolean()),
   },
-  handler: async (ctx, args) => {
-    const user = await authComponent.getAuthUser(ctx).catch(() => null);
-    if (!user) {
-      throw new Error("Unable to perform this action");
-    }
+  handler: async (ctx, args): Promise<Result<BulkCreateResult>> => {
+    const userResult = await getAuthUser(ctx);
+    if (isFailure(userResult)) return userResult;
 
     const environment = await ctx.db.get(args.environmentId);
     if (!environment) {
-      throw new Error("Environment not found");
+      return failure(
+        HttpStatus.NOT_FOUND,
+        "env:not_found",
+        "Environment not found",
+      );
     }
 
     const project = await ctx.db.get(environment.projectId);
     if (!project) {
-      throw new Error("Project not found");
+      return failure(
+        HttpStatus.NOT_FOUND,
+        "project:not_found",
+        "Project not found",
+      );
     }
 
-    const membership = await ctx.db
-      .query("organizationMembers")
-      .withIndex("by_org_and_user", (q) =>
-        q.eq("orgId", project.orgId).eq("userId", user._id),
-      )
-      .first();
+    const authResult = await requireOrgAdmin(ctx, project.orgId);
+    if (isFailure(authResult)) return authResult;
 
-    if (!membership) {
-      throw new Error("You are not a member of this organization");
-    }
-
-    if (membership.role !== "owner" && membership.role !== "admin") {
-      throw new Error("You are not authorized to perform this action");
-    }
-
-    const results = {
+    const results: BulkCreateResult = {
       created: 0,
       updated: 0,
       skipped: 0,
@@ -289,7 +306,7 @@ export const bulkCreate = mutation({
           key: secret.key,
           encryptedValue: secret.encryptedValue,
           environmentId: args.environmentId,
-          createdBy: user._id,
+          createdBy: authResult.data.user._id,
           createdAt: Date.now(),
           updatedAt: Date.now(),
         });
@@ -297,9 +314,15 @@ export const bulkCreate = mutation({
       }
     }
 
-    return results;
+    return success(results);
   },
 });
+
+type SyncResult = {
+  created: number;
+  updated: number;
+  skipped: number;
+};
 
 export const syncFromEnvironment = mutation({
   args: {
@@ -307,44 +330,47 @@ export const syncFromEnvironment = mutation({
     targetEnvironmentId: v.id("environments"),
     overwrite: v.boolean(),
   },
-  handler: async (ctx, args) => {
-    const user = await authComponent.getAuthUser(ctx).catch(() => null);
-    if (!user) {
-      throw new Error("Unable to perform this action");
-    }
+  handler: async (ctx, args): Promise<Result<SyncResult>> => {
+    const userResult = await getAuthUser(ctx);
+    if (isFailure(userResult)) return userResult;
 
     const sourceEnv = await ctx.db.get(args.sourceEnvironmentId);
     if (!sourceEnv) {
-      throw new Error("Source environment not found");
+      return failure(
+        HttpStatus.NOT_FOUND,
+        "env:source_not_found",
+        "Source environment not found",
+      );
     }
+
     const targetEnv = await ctx.db.get(args.targetEnvironmentId);
     if (!targetEnv) {
-      throw new Error("Target environment not found");
+      return failure(
+        HttpStatus.NOT_FOUND,
+        "env:target_not_found",
+        "Target environment not found",
+      );
     }
 
     if (sourceEnv.projectId !== targetEnv.projectId) {
-      throw new Error("Environments must be in the same project");
+      return failure(
+        HttpStatus.BAD_REQUEST,
+        "env:project_mismatch",
+        "Environments must be in the same project",
+      );
     }
 
     const project = await ctx.db.get(sourceEnv.projectId);
     if (!project) {
-      throw new Error("Project not found");
+      return failure(
+        HttpStatus.NOT_FOUND,
+        "project:not_found",
+        "Project not found",
+      );
     }
 
-    const membership = await ctx.db
-      .query("organizationMembers")
-      .withIndex("by_org_and_user", (q) =>
-        q.eq("orgId", project.orgId).eq("userId", user._id),
-      )
-      .first();
-
-    if (!membership) {
-      throw new Error("You are not a member of this organization");
-    }
-
-    if (membership.role !== "owner" && membership.role !== "admin") {
-      throw new Error("You are not authorized to perform this action");
-    }
+    const authResult = await requireOrgAdmin(ctx, project.orgId);
+    if (isFailure(authResult)) return authResult;
 
     const sourceSecrets = await ctx.db
       .query("secrets")
@@ -353,7 +379,7 @@ export const syncFromEnvironment = mutation({
       )
       .collect();
 
-    const results = {
+    const results: SyncResult = {
       created: 0,
       updated: 0,
       skipped: 0,
@@ -382,7 +408,7 @@ export const syncFromEnvironment = mutation({
           key: secret.key,
           encryptedValue: secret.encryptedValue,
           environmentId: args.targetEnvironmentId,
-          createdBy: user._id,
+          createdBy: authResult.data.user._id,
           createdAt: Date.now(),
           updatedAt: Date.now(),
         });
@@ -390,6 +416,6 @@ export const syncFromEnvironment = mutation({
       }
     }
 
-    return results;
+    return success(results);
   },
 });
