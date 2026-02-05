@@ -26,16 +26,12 @@ export default function AuthContent({
         className="w-full"
         onClick={async () => {
           setIsPending(true);
-          try {
-            await signIn.social({
-              provider: "github",
-              errorCallbackURL: "/auth",
-              callbackURL: resolvedCallbackURL,
-              newUserCallbackURL: "/onboarding",
-            });
-          } finally {
-            setIsPending(false);
-          }
+          await signIn.social({
+            provider: "github",
+            errorCallbackURL: "/auth",
+            callbackURL: resolvedCallbackURL,
+            newUserCallbackURL: "/onboarding",
+          });
         }}
       >
         {isPending ? (

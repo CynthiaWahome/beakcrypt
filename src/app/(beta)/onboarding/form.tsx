@@ -73,6 +73,7 @@ export default function OnboardingForm() {
   const [showError, setShowError] = useState(false);
   const [lastTimestamp, setLastTimestamp] = useState(0);
 
+  const [name, setName] = useState(orgState.inputs.name || "");
   const [slug, setSlug] = useState(orgState.inputs.slug || "");
   const [debouncedSlug, setDebouncedSlug] = useState(slug);
 
@@ -93,6 +94,8 @@ export default function OnboardingForm() {
     slugValidation.valid ? { slug: debouncedSlug } : "skip",
   );
 
+  const isSlugCheckLoading =
+    slugValidation.valid && isSlugTakenQuery === undefined;
   const isSlugTaken = shouldValidateSlug && (isSlugInvalid || isSlugTakenQuery);
 
   const [isSkipped, setIsSkipped] = useState(false);
@@ -205,10 +208,11 @@ export default function OnboardingForm() {
                   id="name"
                   name="name"
                   required
+                  value={name}
                   minLength={3}
                   maxLength={32}
                   placeholder="Acme Corp"
-                  defaultValue={orgState.inputs.name}
+                  onChange={(e) => setName(e.target.value)}
                   className={
                     hasError
                       ? "border-red-500/50 focus-visible:ring-red-500/20"
@@ -272,8 +276,10 @@ export default function OnboardingForm() {
                 className="w-full mt-2"
                 disabled={
                   orgPending ||
-                  isSlugTaken === true ||
-                  (debouncedSlug.length >= 3 && isSlugTaken === undefined)
+                  name.trim().length === 0 ||
+                  slug.trim().length === 0 ||
+                  isSlugCheckLoading ||
+                  isSlugTaken === true
                 }
               >
                 {orgPending ? (
