@@ -75,19 +75,15 @@ export default function InviteContent({
           disabled={isSignOutPending}
           onClick={async () => {
             setIsSignOutPending(true);
-            try {
-              await signOut({
-                fetchOptions: {
-                  onSuccess: () => {
-                    router.push(
-                      `/auth?callbackURL=${encodeURIComponent(`/auth/invite?token=${token}`)}`,
-                    );
-                  },
+            await signOut({
+              fetchOptions: {
+                onSuccess: () => {
+                  router.push(
+                    `/auth?callbackURL=${encodeURIComponent(`/auth/invite?token=${token}`)}`,
+                  );
                 },
-              });
-            } finally {
-              setIsSignOutPending(false);
-            }
+              },
+            });
           }}
         >
           {isSignOutPending ? (
