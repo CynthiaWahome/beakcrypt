@@ -23,6 +23,7 @@
     "@radix-ui/react-tabs": "^1.1.13",
     "@react-email/components": "1.0.7",
     "@t3-oss/env-nextjs": "^0.13.10",
+    "@typescript/native-preview": "7.0.0-dev.20260209.1",
     "@vercel/analytics": "^1.6.1",
     "better-auth": "1.4.18",
     "canvas-confetti": "^1.9.4",
