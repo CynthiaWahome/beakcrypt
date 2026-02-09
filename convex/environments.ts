@@ -54,12 +54,14 @@ export const create = mutation({
     const authResult = await requireOrgAdmin(ctx, project.orgId);
     if (isFailure(authResult)) return authResult;
 
-    const existing = await ctx.db
+    const environments = await ctx.db
       .query("environments")
-      .withIndex("by_project_and_name", (q) =>
-        q.eq("projectId", args.projectId).eq("name", args.name),
-      )
-      .first();
+      .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
+      .collect();
+
+    const existing = environments.find(
+      (env) => env.name.toLowerCase() === args.name.toLowerCase(),
+    );
 
     if (existing) {
       return failure(
@@ -68,11 +70,6 @@ export const create = mutation({
         "An environment with this name already exists",
       );
     }
-
-    const environments = await ctx.db
-      .query("environments")
-      .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
-      .collect();
 
     const maxOrder = Math.max(...environments.map((env) => env.order), -1);
 

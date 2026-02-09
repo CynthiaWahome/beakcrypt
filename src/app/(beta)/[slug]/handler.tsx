@@ -1,7 +1,7 @@
 import { api } from "conv/_generated/api";
-import { notFound } from "next/navigation";
 import { isFailure, HttpStatus } from "conv/types";
 import { fetchAuthQuery } from "~/lib/auth-server";
+import { notFound, redirect } from "next/navigation";
 
 export default async function OrganizationHandler({
   paramsPromise,
@@ -17,7 +17,16 @@ export default async function OrganizationHandler({
     if (organization.status === HttpStatus.NOT_FOUND) {
       return notFound();
     }
-    return null;
+
+    if (
+      organization.status === HttpStatus.UNAUTHORIZED ||
+      organization.status === HttpStatus.FORBIDDEN
+    ) {
+      const callbackUrl = `/${slug}`;
+      redirect(`/auth?callbackURL=${encodeURIComponent(callbackUrl)}`);
+    }
+
+    return notFound();
   }
 
   return (

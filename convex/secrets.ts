@@ -152,7 +152,7 @@ export const update = mutation({
     const authResult = await requireOrgAdmin(ctx, project.orgId);
     if (isFailure(authResult)) return authResult;
 
-    if (args.key && args.key !== secret.key) {
+    if (args.key !== undefined && args.key !== secret.key) {
       const newKey = args.key;
       const existing = await ctx.db
         .query("secrets")
@@ -171,7 +171,7 @@ export const update = mutation({
     }
 
     await ctx.db.patch(args.id, {
-      ...(args.key && { key: args.key }),
+      ...(args.key !== undefined && { key: args.key }),
       ...(args.encryptedValue !== undefined && {
         encryptedValue: args.encryptedValue,
       }),

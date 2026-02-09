@@ -39,12 +39,16 @@ export default function OrgSwitcher() {
     isAuthenticated ? {} : "skip",
   );
 
-  if (isLoading || activeOrgResult === undefined || orgsResult === undefined) {
+  if (isLoading) {
     return <OrgSwitcherSkeleton />;
   }
 
   if (!isAuthenticated) {
     redirect("/auth");
+  }
+
+  if (activeOrgResult === undefined || orgsResult === undefined) {
+    return <OrgSwitcherSkeleton />;
   }
 
   if (isFailure(activeOrgResult)) {

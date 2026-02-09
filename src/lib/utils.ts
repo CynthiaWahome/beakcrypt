@@ -58,5 +58,5 @@ export function getInitials(name: string): string {
         .map((p) => p[0])
         .join("")
         .toUpperCase()
-    : name.slice(0, 2).toUpperCase();
+    : parts[0].slice(0, 2).toUpperCase();
 }
