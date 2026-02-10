@@ -235,6 +235,50 @@ export const remove = mutation({
   },
 });
 
+export const removeAll = mutation({
+  args: {
+    environmentId: v.id("environments"),
+  },
+  handler: async (ctx, args): Promise<Result<{ deleted: number }>> => {
+    const userResult = await getAuthUser(ctx);
+    if (isFailure(userResult)) return userResult;
+
+    const environment = await ctx.db.get(args.environmentId);
+    if (!environment) {
+      return failure(
+        HttpStatus.NOT_FOUND,
+        "env:not_found",
+        "Environment not found",
+      );
+    }
+
+    const project = await ctx.db.get(environment.projectId);
+    if (!project) {
+      return failure(
+        HttpStatus.NOT_FOUND,
+        "project:not_found",
+        "Project not found",
+      );
+    }
+
+    const authResult = await requireOrgAdmin(ctx, project.orgId);
+    if (isFailure(authResult)) return authResult;
+
+    const secrets = await ctx.db
+      .query("secrets")
+      .withIndex("by_environment", (q) =>
+        q.eq("environmentId", args.environmentId),
+      )
+      .collect();
+
+    for (const secret of secrets) {
+      await ctx.db.delete(secret._id);
+    }
+
+    return success({ deleted: secrets.length });
+  },
+});
+
 type BulkCreateResult = {
   created: number;
   updated: number;

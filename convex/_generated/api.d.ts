@@ -15,6 +15,7 @@ import type * as github from "../github.js";
 import type * as http from "../http.js";
 import type * as invites from "../invites.js";
 import type * as mail from "../mail.js";
+import type * as members from "../members.js";
 import type * as organizations from "../organizations.js";
 import type * as projects from "../projects.js";
 import type * as secrets from "../secrets.js";
@@ -35,6 +36,7 @@ declare const fullApi: ApiFromModules<{
   http: typeof http;
   invites: typeof invites;
   mail: typeof mail;
+  members: typeof members;
   organizations: typeof organizations;
   projects: typeof projects;
   secrets: typeof secrets;
