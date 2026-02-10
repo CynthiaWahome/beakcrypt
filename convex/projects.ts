@@ -252,6 +252,104 @@ export const update = mutation({
   },
 });
 
+export const linkRepo = mutation({
+  args: {
+    id: v.id("projects"),
+    githubRepoId: v.number(),
+    githubRepoUrl: v.string(),
+    githubRepoName: v.string(),
+  },
+  handler: async (ctx, args): Promise<Result<Doc<"projects">>> => {
+    const userResult = await getAuthUser(ctx);
+    if (isFailure(userResult)) return userResult;
+
+    const project = await ctx.db.get(args.id);
+    if (!project) {
+      return failure(
+        HttpStatus.NOT_FOUND,
+        "project:not_found",
+        "Project not found",
+      );
+    }
+
+    const authResult = await requireOrgAdmin(ctx, project.orgId);
+    if (isFailure(authResult)) return authResult;
+
+    const existingRepo = await ctx.db
+      .query("projects")
+      .withIndex("by_github_repo", (q) =>
+        q.eq("githubRepoId", args.githubRepoId),
+      )
+      .first();
+
+    if (existingRepo && existingRepo._id !== args.id) {
+      return failure(
+        HttpStatus.CONFLICT,
+        "project:repo_imported",
+        "This repository is already linked to another project",
+      );
+    }
+
+    await ctx.db.patch(args.id, {
+      githubRepoId: args.githubRepoId,
+      githubRepoUrl: args.githubRepoUrl,
+      githubRepoName: args.githubRepoName,
+      updatedAt: Date.now(),
+    });
+
+    const updated = await ctx.db.get(args.id);
+    if (!updated) {
+      return failure(
+        HttpStatus.INTERNAL_SERVER_ERROR,
+        "project:link_failed",
+        "Failed to link repository",
+      );
+    }
+
+    return success(updated);
+  },
+});
+
+export const unlinkRepo = mutation({
+  args: {
+    id: v.id("projects"),
+  },
+  handler: async (ctx, args): Promise<Result<Doc<"projects">>> => {
+    const userResult = await getAuthUser(ctx);
+    if (isFailure(userResult)) return userResult;
+
+    const project = await ctx.db.get(args.id);
+    if (!project) {
+      return failure(
+        HttpStatus.NOT_FOUND,
+        "project:not_found",
+        "Project not found",
+      );
+    }
+
+    const authResult = await requireOrgAdmin(ctx, project.orgId);
+    if (isFailure(authResult)) return authResult;
+
+    await ctx.db.patch(args.id, {
+      githubRepoId: undefined,
+      githubRepoUrl: undefined,
+      githubRepoName: undefined,
+      updatedAt: Date.now(),
+    });
+
+    const updated = await ctx.db.get(args.id);
+    if (!updated) {
+      return failure(
+        HttpStatus.INTERNAL_SERVER_ERROR,
+        "project:unlink_failed",
+        "Failed to unlink repository",
+      );
+    }
+
+    return success(updated);
+  },
+});
+
 export const remove = mutation({
   args: {
     id: v.id("projects"),
