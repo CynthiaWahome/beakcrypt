@@ -146,14 +146,10 @@ export const inviteUser = async (
     };
   }
 
-  const token = crypto.randomUUID();
-
   const result = await fetchAuthMutation(api.invites.create, {
-    token,
     role: validatedData.data.role,
     email: validatedData.data.email,
     orgId: validatedData.data.orgId,
-    expiresAt: Date.now() + 7 * 24 * 60 * 60 * 1000,
   });
 
   if (isFailure(result)) {
