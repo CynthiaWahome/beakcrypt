@@ -4,7 +4,7 @@ import { internal } from "./_generated/api";
 import type { Doc } from "./_generated/dataModel";
 import { mutation, query } from "./_generated/server";
 import { Result, success, failure, HttpStatus, isFailure } from "./types";
-import { getAuthUser, requireOrgAdmin } from "./authHelpers";
+import { getAuthUser, requireOrgAdmin, requireOrgMember } from "./authHelpers";
 
 export const create = mutation({
   args: {
@@ -26,12 +26,27 @@ export const create = mutation({
       .filter((q) => q.eq(q.field("email"), args.email))
       .first();
 
-    if (existingInvite && existingInvite.status === "pending") {
+    if (
+      existingInvite &&
+      existingInvite.status === "pending" &&
+      existingInvite.expiresAt > Date.now()
+    ) {
       return failure(
         HttpStatus.CONFLICT,
         "invite:already_exists",
         "A pending invite already exists for this email",
       );
+    }
+
+    if (
+      existingInvite &&
+      existingInvite.status === "pending" &&
+      existingInvite.expiresAt <= Date.now()
+    ) {
+      await ctx.db.patch(existingInvite._id, {
+        status: "revoked",
+        updatedAt: Date.now(),
+      });
     }
 
     const inviteId = await ctx.db.insert("invites", {
@@ -222,6 +237,180 @@ export const decline = mutation({
     }
 
     return success(updatedInvite);
+  },
+});
+
+export const resend = mutation({
+  args: {
+    inviteId: v.id("invites"),
+  },
+  handler: async (ctx, args): Promise<Result<Doc<"invites">>> => {
+    const invite = await ctx.db.get(args.inviteId);
+    if (!invite) {
+      return failure(
+        HttpStatus.NOT_FOUND,
+        "invite:not_found",
+        "Invite not found",
+      );
+    }
+
+    if (invite.status === "accepted") {
+      return failure(
+        HttpStatus.BAD_REQUEST,
+        "invite:already_accepted",
+        "This invite has already been accepted",
+      );
+    }
+
+    const authResult = await requireOrgAdmin(ctx, invite.orgId);
+    if (isFailure(authResult)) return authResult;
+
+    const { user } = authResult.data;
+
+    const newToken = crypto.randomUUID();
+    const newExpiry = Date.now() + 7 * 24 * 60 * 60 * 1000;
+
+    await ctx.db.patch(args.inviteId, {
+      token: newToken,
+      expiresAt: newExpiry,
+      status: "pending",
+      updatedAt: Date.now(),
+    });
+
+    const org = await ctx.db.get(invite.orgId);
+
+    if (org) {
+      await ctx.scheduler.runAfter(0, internal.mail.sendInviteMail, {
+        email: invite.email,
+        orgName: org.name,
+        invitedByEmail: user.email,
+        url: `${process.env.SITE_URL}/auth/invite?token=${newToken}`,
+      });
+    }
+
+    const updated = await ctx.db.get(args.inviteId);
+    if (!updated) {
+      return failure(
+        HttpStatus.INTERNAL_SERVER_ERROR,
+        "invite:resend_failed",
+        "Failed to resend invite",
+      );
+    }
+
+    return success(updated);
+  },
+});
+
+export const listByOrg = query({
+  args: {
+    orgId: v.id("organizations"),
+  },
+  handler: async (ctx, args): Promise<Result<Doc<"invites">[]>> => {
+    const authResult = await requireOrgMember(ctx, args.orgId);
+    if (isFailure(authResult)) return authResult;
+
+    const invites = await ctx.db
+      .query("invites")
+      .withIndex("by_org", (q) => q.eq("orgId", args.orgId))
+      .filter((q) => q.neq(q.field("status"), "accepted"))
+      .collect();
+
+    return success(invites);
+  },
+});
+
+export const revoke = mutation({
+  args: {
+    inviteId: v.id("invites"),
+  },
+  handler: async (ctx, args): Promise<Result<Doc<"invites">>> => {
+    const invite = await ctx.db.get(args.inviteId);
+    if (!invite) {
+      return failure(
+        HttpStatus.NOT_FOUND,
+        "invite:not_found",
+        "Invite not found",
+      );
+    }
+
+    const authResult = await requireOrgAdmin(ctx, invite.orgId);
+    if (isFailure(authResult)) return authResult;
+
+    if (invite.status !== "pending") {
+      return failure(
+        HttpStatus.BAD_REQUEST,
+        "invite:invalid",
+        "Only pending invites can be revoked",
+      );
+    }
+
+    await ctx.db.patch(args.inviteId, {
+      status: "revoked",
+      updatedAt: Date.now(),
+    });
+
+    const updated = await ctx.db.get(args.inviteId);
+    if (!updated) {
+      return failure(
+        HttpStatus.INTERNAL_SERVER_ERROR,
+        "invite:revoke_failed",
+        "Failed to revoke invite",
+      );
+    }
+
+    return success(updated);
+  },
+});
+
+export const updateRole = mutation({
+  args: {
+    inviteId: v.id("invites"),
+    role: roles,
+  },
+  handler: async (ctx, args): Promise<Result<Doc<"invites">>> => {
+    if (args.role === "owner") {
+      return failure(
+        HttpStatus.BAD_REQUEST,
+        "invite:invalid_role",
+        "Cannot assign owner role via invite",
+      );
+    }
+
+    const invite = await ctx.db.get(args.inviteId);
+    if (!invite) {
+      return failure(
+        HttpStatus.NOT_FOUND,
+        "invite:not_found",
+        "Invite not found",
+      );
+    }
+
+    if (invite.status !== "pending") {
+      return failure(
+        HttpStatus.BAD_REQUEST,
+        "invite:invalid",
+        "Only pending invites can be updated",
+      );
+    }
+
+    const authResult = await requireOrgAdmin(ctx, invite.orgId);
+    if (isFailure(authResult)) return authResult;
+
+    await ctx.db.patch(args.inviteId, {
+      role: args.role,
+      updatedAt: Date.now(),
+    });
+
+    const updated = await ctx.db.get(args.inviteId);
+    if (!updated) {
+      return failure(
+        HttpStatus.INTERNAL_SERVER_ERROR,
+        "invite:update_failed",
+        "Failed to update invite",
+      );
+    }
+
+    return success(updated);
   },
 });
 
