@@ -56,12 +56,7 @@ export const getMyMembership = query({
     const authResult = await requireOrgMember(ctx, args.orgId);
     if (isFailure(authResult)) return authResult;
 
-    const membership = await ctx.db
-      .query("organizationMembers")
-      .withIndex("by_org_and_user", (q) =>
-        q.eq("orgId", args.orgId).eq("userId", authResult.data.user._id),
-      )
-      .first();
+    const { membership } = authResult.data;
 
     return success(membership ?? null);
   },
@@ -73,9 +68,6 @@ export const updateRole = mutation({
     role: roles,
   },
   handler: async (ctx, args): Promise<Result<Doc<"organizationMembers">>> => {
-    const userResult = await getAuthUser(ctx);
-    if (isFailure(userResult)) return userResult;
-
     const membership = await ctx.db.get(args.memberId);
     if (!membership) {
       return failure(

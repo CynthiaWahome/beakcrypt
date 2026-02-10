@@ -25,7 +25,7 @@ import type { Id } from "conv/_generated/dataModel";
 import { useMutation, useAction } from "convex/react";
 import { api } from "conv/_generated/api";
 import { isSuccess, isFailure } from "conv/types";
-import { useState, useEffect, useTransition } from "react";
+import { useState, useEffect, useTransition, useEffectEvent } from "react";
 
 type GitHubRepo = {
   id: number;
@@ -61,38 +61,53 @@ export default function LinkRepoDialog({ projectId, currentRepoName }: Props) {
 
   const isLinked = !!currentRepoName;
 
+  const loadInitialRepos = useEffectEvent(() => {
+    startRepoTransition(async () => {
+      try {
+        const result = await listRepos({ perPage: 20 });
+        if (isSuccess(result)) {
+          setRepos(result.data);
+        }
+        setReposLoaded(true);
+      } catch {
+        setReposLoaded(true);
+      }
+    });
+  });
+
+  const runRepoSearch = useEffectEvent((query: string) => {
+    startRepoTransition(async () => {
+      try {
+        const result = await searchRepos({ query });
+        if (isSuccess(result)) {
+          setRepos(result.data);
+        }
+      } catch {}
+    });
+  });
+
   useEffect(() => {
     if (open && !reposLoaded) {
-      startRepoTransition(async () => {
-        try {
-          const result = await listRepos({ perPage: 20 });
-          if (isSuccess(result)) {
-            setRepos(result.data);
-          }
-          setReposLoaded(true);
-        } catch {
-          setReposLoaded(true);
-        }
-      });
+      loadInitialRepos();
     }
-  }, [open, reposLoaded, listRepos]);
+  }, [open, reposLoaded]);
 
   useEffect(() => {
-    if (!open || !repoSearch.trim()) return;
+    if (!open) return;
+
+    const trimmedSearch = repoSearch.trim();
+    if (!trimmedSearch) {
+      setRepos([]);
+      setReposLoaded(false);
+      return;
+    }
 
     const handler = setTimeout(() => {
-      startRepoTransition(async () => {
-        try {
-          const result = await searchRepos({ query: repoSearch });
-          if (isSuccess(result)) {
-            setRepos(result.data);
-          }
-        } catch {}
-      });
+      runRepoSearch(trimmedSearch);
     }, 400);
 
     return () => clearTimeout(handler);
-  }, [repoSearch, open, searchRepos]);
+  }, [repoSearch, open]);
 
   const handleLink = () => {
     if (!selectedRepo) return;
@@ -202,7 +217,10 @@ export default function LinkRepoDialog({ projectId, currentRepoName }: Props) {
             <Input
               placeholder="Search repositories..."
               value={repoSearch}
-              onChange={(e) => setRepoSearch(e.target.value)}
+              onChange={(e) => {
+                setRepoSearch(e.target.value);
+                setSelectedRepo(null);
+              }}
               className="pl-8"
             />
           </div>

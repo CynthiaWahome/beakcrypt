@@ -2,7 +2,7 @@
 
 import { Preloaded, usePreloadedQuery } from "convex/react";
 import { api } from "conv/_generated/api";
-import { isSuccess } from "conv/types";
+import { isSuccess, isFailure } from "conv/types";
 import type { Doc } from "conv/_generated/dataModel";
 import Link from "next/link";
 import { FolderOpen, Plus, Github, Clock } from "lucide-react";
@@ -32,6 +32,7 @@ export default function DashboardContent({
   const projectsResult = usePreloadedQuery(preloadedProjects);
   const [createOpen, setCreateOpen] = useState(false);
 
+  const projectsError = isFailure(projectsResult) ? projectsResult.error : "";
   const projects = isSuccess(projectsResult) ? projectsResult.data : [];
 
   return (
@@ -56,7 +57,11 @@ export default function DashboardContent({
       <Separator />
 
       <div className="flex-1 p-6">
-        {projects.length === 0 ? (
+        {projectsError ? (
+          <div className="flex items-center justify-center rounded-lg border border-dashed p-8">
+            <p className="text-sm text-red-400">{projectsError}</p>
+          </div>
+        ) : projects.length === 0 ? (
           <Empty className="min-h-[60vh]">
             <EmptyHeader>
               <EmptyMedia variant="icon">
@@ -98,7 +103,7 @@ function ProjectCard({
 }) {
   return (
     <Link
-      href={`/${orgSlug}/${project.name}`}
+      href={`/${orgSlug}/${encodeURIComponent(project.name)}`}
       className="group relative flex flex-col gap-3 rounded-lg border bg-card p-4 transition-colors hover:bg-accent/50"
     >
       <div className="flex items-start justify-between">

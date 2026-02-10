@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useQuery, useConvexAuth } from "convex/react";
 import { api } from "conv/_generated/api";
-import { isSuccess } from "conv/types";
+import { isFailure, isSuccess } from "conv/types";
 import { useParams } from "next/navigation";
 import { FolderOpen } from "lucide-react";
 import {
@@ -39,14 +39,50 @@ export default function NavProjects() {
   const projects =
     projectsResult && isSuccess(projectsResult) ? projectsResult.data : null;
 
+  const isAuthLoading = isLoading;
+  const isOrgsLoading = isAuthenticated && orgsResult === undefined;
+  const isProjectsLoading = !!orgId && projectsResult === undefined;
+
+  const hasAuthOrOrgError =
+    !isAuthLoading &&
+    (!isAuthenticated || (orgsResult !== undefined && isFailure(orgsResult)));
+
+  const hasProjectsError =
+    !!orgId && projectsResult !== undefined && isFailure(projectsResult);
+
   return (
     <SidebarGroup>
       <SidebarGroupLabel>Projects</SidebarGroupLabel>
       <SidebarGroupContent>
         <SidebarMenu>
-          {(isLoading || projects === null) && <ProjectListSkeleton />}
+          {(isAuthLoading || isOrgsLoading || isProjectsLoading) && (
+            <ProjectListSkeleton />
+          )}
+
+          {!isAuthLoading && hasAuthOrOrgError && (
+            <SidebarMenuItem>
+              <SidebarMenuButton disabled>
+                <span className="text-muted-foreground text-xs">
+                  {!isAuthenticated
+                    ? "Sign in to view projects"
+                    : "Unable to load organization"}
+                </span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          )}
+
+          {!isAuthLoading && !hasAuthOrOrgError && hasProjectsError && (
+            <SidebarMenuItem>
+              <SidebarMenuButton disabled>
+                <span className="text-muted-foreground text-xs">
+                  Unable to load projects
+                </span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          )}
 
           {projects !== null &&
+            projects.length > 0 &&
             projects.map((p) => {
               const isActive =
                 activeProject === p.name ||
@@ -59,7 +95,7 @@ export default function NavProjects() {
                     isActive={isActive}
                     tooltip={p.name}
                   >
-                    <Link href={`/${slug}/${p.name}`}>
+                    <Link href={`/${slug}/${encodeURIComponent(p.name)}`}>
                       <FolderOpen />
                       <span>{p.name}</span>
                     </Link>
@@ -68,7 +104,7 @@ export default function NavProjects() {
               );
             })}
 
-          {projects !== null && projects.length === 0 && (
+          {projects !== null && projects.length === 0 && !hasProjectsError && (
             <SidebarMenuItem>
               <SidebarMenuButton disabled>
                 <span className="text-muted-foreground text-xs">

@@ -318,6 +318,7 @@ export default function CreateProjectDialog({
                     Project Name
                   </label>
                   <Input
+                    key={selectedRepo.id}
                     id="project-name-github"
                     name="name"
                     required

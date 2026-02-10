@@ -91,7 +91,13 @@ export const getBySlug = query({
     }
 
     const membershipResult = await requireOrgMember(ctx, organization._id);
-    if (isFailure(membershipResult)) return membershipResult;
+    if (isFailure(membershipResult)) {
+      return failure(
+        HttpStatus.NOT_FOUND,
+        "org:not_found",
+        "Organization not found",
+      );
+    }
 
     return success(organization);
   },

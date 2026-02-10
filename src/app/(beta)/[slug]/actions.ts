@@ -25,6 +25,9 @@ const createProjectSchema = z.object({
   githubRepoId: z
     .string()
     .optional()
+    .refine((v) => !v || /^\d+$/.test(v), {
+      message: "Invalid GitHub repository ID",
+    })
     .transform((v) => (v ? Number(v) : undefined)),
   githubRepoUrl: z.string().optional(),
   githubRepoName: z.string().optional(),

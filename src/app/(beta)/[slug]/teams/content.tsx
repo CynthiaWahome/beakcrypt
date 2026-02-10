@@ -99,13 +99,10 @@ export default function TeamsContent({
     setInviteError("");
     startInviteTransition(async () => {
       try {
-        const token = crypto.randomUUID();
         const result = await inviteMutation({
           orgId: organization._id,
           email: inviteEmail.trim().toLowerCase(),
           role: inviteRole,
-          token,
-          expiresAt: Date.now() + 7 * 24 * 60 * 60 * 1000, // 7 days
         });
         if (isFailure(result)) {
           setInviteError(result.error);

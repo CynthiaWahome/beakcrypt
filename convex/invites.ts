@@ -11,8 +11,6 @@ export const create = mutation({
     orgId: v.id("organizations"),
     email: v.string(),
     role: roles,
-    token: v.string(),
-    expiresAt: v.number(),
   },
   handler: async (ctx, args): Promise<Result<Doc<"invites">>> => {
     const authResult = await requireOrgAdmin(ctx, args.orgId);
@@ -49,13 +47,16 @@ export const create = mutation({
       });
     }
 
+    const token = crypto.randomUUID();
+    const expiresAt = Date.now() + 7 * 24 * 60 * 60 * 1000;
+
     const inviteId = await ctx.db.insert("invites", {
       orgId: args.orgId,
       email: args.email,
       role: args.role,
-      token: args.token,
+      token,
       inviterId: user._id,
-      expiresAt: args.expiresAt,
+      expiresAt,
       status: "pending",
       createdAt: Date.now(),
       updatedAt: Date.now(),
@@ -68,7 +69,7 @@ export const create = mutation({
         email: args.email,
         orgName: org.name,
         invitedByEmail: user.email,
-        url: `${process.env.SITE_URL}/auth/invite?token=${args.token}`,
+        url: `${process.env.SITE_URL}/auth/invite?token=${token}`,
       });
     }
 
@@ -254,6 +255,11 @@ export const resend = mutation({
       );
     }
 
+    const authResult = await requireOrgAdmin(ctx, invite.orgId);
+    if (isFailure(authResult)) return authResult;
+
+    const { user } = authResult.data;
+
     if (invite.status === "accepted") {
       return failure(
         HttpStatus.BAD_REQUEST,
@@ -261,11 +267,6 @@ export const resend = mutation({
         "This invite has already been accepted",
       );
     }
-
-    const authResult = await requireOrgAdmin(ctx, invite.orgId);
-    if (isFailure(authResult)) return authResult;
-
-    const { user } = authResult.data;
 
     const newToken = crypto.randomUUID();
     const newExpiry = Date.now() + 7 * 24 * 60 * 60 * 1000;
@@ -385,6 +386,9 @@ export const updateRole = mutation({
       );
     }
 
+    const authResult = await requireOrgAdmin(ctx, invite.orgId);
+    if (isFailure(authResult)) return authResult;
+
     if (invite.status !== "pending") {
       return failure(
         HttpStatus.BAD_REQUEST,
@@ -392,9 +396,6 @@ export const updateRole = mutation({
         "Only pending invites can be updated",
       );
     }
-
-    const authResult = await requireOrgAdmin(ctx, invite.orgId);
-    if (isFailure(authResult)) return authResult;
 
     await ctx.db.patch(args.inviteId, {
       role: args.role,

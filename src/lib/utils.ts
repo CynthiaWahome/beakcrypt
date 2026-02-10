@@ -51,12 +51,17 @@ export function getSafeCallbackURL(url: string | undefined): string {
 }
 
 export function getInitials(name: string): string {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
+  const trimmed = name.trim();
+  const parts = trimmed.split(/\s+/).filter(Boolean);
+  if (parts.length === 0) {
+    return "?!";
+  }
+
   return parts.length > 1
     ? parts
         .slice(0, 2)
         .map((p) => p[0])
         .join("")
         .toUpperCase()
-    : parts[0].slice(0, 2).toUpperCase();
+    : trimmed.slice(0, 2).toUpperCase();
 }

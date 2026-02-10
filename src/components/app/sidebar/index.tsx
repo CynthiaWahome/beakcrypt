@@ -20,10 +20,6 @@ import NavMain from "./nav-main";
 import NavProjects from "./nav-projects";
 import ProjectListSkeleton from "./project-list-skeleton";
 
-/**
- * Static fallback for NavMain.
- * Shows "Overview" text with icon (not a link) until the slug resolves.
- */
 function NavMainSkeleton() {
   return (
     <SidebarGroup>
@@ -53,10 +49,6 @@ function NavMainSkeleton() {
   );
 }
 
-/**
- * Static fallback for NavProjects.
- * Shows the "Projects" label immediately with deterministic skeleton items.
- */
 function NavProjectsSkeleton() {
   return (
     <SidebarGroup>
