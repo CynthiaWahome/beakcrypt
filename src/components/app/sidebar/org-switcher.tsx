@@ -99,7 +99,7 @@ export default function OrgSwitcher() {
             <DropdownMenuLabel className="text-muted-foreground text-xs">
               Organizations
             </DropdownMenuLabel>
-            {orgs.map((org, index) => (
+            {orgs.map((org) => (
               <DropdownMenuItem key={org._id} asChild className="gap-2 p-2">
                 <Link href={`/${org.slug}`}>
                   <div className="flex size-6 items-center justify-center rounded-md border">
@@ -109,7 +109,6 @@ export default function OrgSwitcher() {
                     </Avatar>
                   </div>
                   {org.name}
-                  <DropdownMenuShortcut>⌘{index + 1}</DropdownMenuShortcut>
                 </Link>
               </DropdownMenuItem>
             ))}

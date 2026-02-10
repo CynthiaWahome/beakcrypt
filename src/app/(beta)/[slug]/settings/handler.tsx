@@ -16,17 +16,19 @@ export default async function SettingsHandler({
   });
 
   if (isFailure(organization)) {
-    if (organization.status === HttpStatus.NOT_FOUND) {
-      return notFound();
-    }
-    if (
-      organization.status === HttpStatus.UNAUTHORIZED ||
-      organization.status === HttpStatus.FORBIDDEN
-    ) {
+    if (organization.status === HttpStatus.UNAUTHORIZED) {
       const callbackUrl = `/${slug}/settings`;
       redirect(`/auth?callbackURL=${encodeURIComponent(callbackUrl)}`);
     }
-    return notFound();
+    if (
+      organization.status === HttpStatus.NOT_FOUND ||
+      organization.status === HttpStatus.FORBIDDEN
+    ) {
+      return notFound();
+    }
+    if (!organization.data) {
+      return notFound();
+    }
   }
 
   return <SettingsContent organization={organization.data} />;
