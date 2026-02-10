@@ -2,7 +2,7 @@ import { v } from "convex/values";
 import type { Doc } from "./_generated/dataModel";
 import { query, mutation } from "./_generated/server";
 import { validateSlug } from "../shared/reserved-slugs";
-import { getAuthUser, requireOrgMember } from "./authHelpers";
+import { getAuthUser, requireOrgAdmin, requireOrgMember } from "./authHelpers";
 import { Result, success, failure, HttpStatus, isFailure } from "./types";
 
 export const create = mutation({
@@ -132,5 +132,72 @@ export const list = query({
     );
 
     return success(orgs.filter((org) => org !== null));
+  },
+});
+
+export const update = mutation({
+  args: {
+    id: v.id("organizations"),
+    name: v.optional(v.string()),
+    slug: v.optional(v.string()),
+    avatar: v.optional(v.string()),
+  },
+  handler: async (ctx, args): Promise<Result<Doc<"organizations">>> => {
+    const authResult = await requireOrgAdmin(ctx, args.id);
+    if (isFailure(authResult)) return authResult;
+
+    const org = await ctx.db.get(args.id);
+    if (!org) {
+      return failure(
+        HttpStatus.NOT_FOUND,
+        "org:not_found",
+        "Organization not found",
+      );
+    }
+
+    if (args.slug && args.slug !== org.slug) {
+      const slugValidation = validateSlug(args.slug);
+      if (!slugValidation.valid) {
+        return failure(
+          HttpStatus.BAD_REQUEST,
+          "validation:invalid_slug",
+          slugValidation.error ?? "Invalid slug",
+        );
+      }
+
+      const existing = await ctx.db
+        .query("organizations")
+        .withIndex("by_slug", (q) => q.eq("slug", args.slug!))
+        .first();
+
+      if (existing && existing._id !== args.id) {
+        return failure(
+          HttpStatus.CONFLICT,
+          "org:slug_taken",
+          "Organization URL is already taken",
+        );
+      }
+    }
+
+    const updates: Partial<Doc<"organizations">> = {
+      updatedAt: Date.now(),
+    };
+
+    if (args.name !== undefined) updates.name = args.name;
+    if (args.slug !== undefined) updates.slug = args.slug;
+    if (args.avatar !== undefined) updates.avatar = args.avatar;
+
+    await ctx.db.patch(args.id, updates);
+
+    const updated = await ctx.db.get(args.id);
+    if (!updated) {
+      return failure(
+        HttpStatus.INTERNAL_SERVER_ERROR,
+        "org:update_failed",
+        "Failed to update organization",
+      );
+    }
+
+    return success(updated);
   },
 });
