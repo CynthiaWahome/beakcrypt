@@ -5,17 +5,10 @@ import { Result, success, failure, HttpStatus, isFailure } from "./types";
 
 type AuthCtx = QueryCtx | MutationCtx;
 
-/**
- * User type inferred from Better Auth's getAuthUser.
- * NonNullable removes null from the return type since we check for it.
- */
 export type AuthUser = NonNullable<
   Awaited<ReturnType<typeof authComponent.getAuthUser>>
 >;
 
-/**
- * Get the authenticated user or return a failure result.
- */
 export async function getAuthUser(ctx: AuthCtx): Promise<Result<AuthUser>> {
   const user = await authComponent.getAuthUser(ctx).catch(() => null);
   if (!user) {
@@ -28,11 +21,6 @@ export async function getAuthUser(ctx: AuthCtx): Promise<Result<AuthUser>> {
   return success(user, HttpStatus.OK);
 }
 
-/**
- * Check if a user is a member of an organization.
- * Returns the membership document on success.
- * Internal - used by requireOrgAdmin and requireOrgMember.
- */
 async function checkMembership(
   ctx: AuthCtx,
   orgId: Id<"organizations">,
@@ -56,10 +44,6 @@ async function checkMembership(
   return success(membership);
 }
 
-/**
- * Check if a membership has admin or owner role.
- * Internal - used by requireOrgAdmin.
- */
 function checkAdminRole(
   membership: Doc<"organizationMembers">,
 ): Result<Doc<"organizationMembers">> {
@@ -75,10 +59,6 @@ function checkAdminRole(
 
 type OrgAuthResult = { user: AuthUser; membership: Doc<"organizationMembers"> };
 
-/**
- * Combined helper: get user + check membership + check admin role.
- * Use for mutations that require admin permissions.
- */
 export async function requireOrgAdmin(
   ctx: AuthCtx,
   orgId: Id<"organizations">,
@@ -108,10 +88,6 @@ export async function requireOrgAdmin(
   });
 }
 
-/**
- * Combined helper: get user + check membership.
- * Use for queries/mutations that just need org membership.
- */
 export async function requireOrgMember(
   ctx: AuthCtx,
   orgId: Id<"organizations">,

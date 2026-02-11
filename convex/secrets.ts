@@ -463,3 +463,46 @@ export const syncFromEnvironment = mutation({
     return success(results);
   },
 });
+
+export const listAllOrgSecrets = query({
+  args: {
+    orgId: v.id("organizations"),
+  },
+  handler: async (
+    ctx,
+    args,
+  ): Promise<Result<Array<{ secretId: string; encryptedValue: string }>>> => {
+    const authResult = await requireOrgAdmin(ctx, args.orgId);
+    if (isFailure(authResult)) return authResult;
+
+    const projects = await ctx.db
+      .query("projects")
+      .withIndex("by_org", (q) => q.eq("orgId", args.orgId))
+      .collect();
+
+    const allSecrets: Array<{ secretId: string; encryptedValue: string }> = [];
+
+    for (const project of projects) {
+      const environments = await ctx.db
+        .query("environments")
+        .withIndex("by_project", (q) => q.eq("projectId", project._id))
+        .collect();
+
+      for (const env of environments) {
+        const secrets = await ctx.db
+          .query("secrets")
+          .withIndex("by_environment", (q) => q.eq("environmentId", env._id))
+          .collect();
+
+        for (const secret of secrets) {
+          allSecrets.push({
+            secretId: secret._id,
+            encryptedValue: secret.encryptedValue,
+          });
+        }
+      }
+    }
+
+    return success(allSecrets);
+  },
+});
