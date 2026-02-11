@@ -122,7 +122,9 @@ export async function decryptSecret(
 ): Promise<string> {
   const [ivBase64, ciphertextBase64] = encryptedValue.split(":");
   if (!ivBase64 || !ciphertextBase64) {
-    throw new Error("Invalid encrypted value format — expected 'iv:ciphertext'");
+    throw new Error(
+      "Invalid encrypted value format — expected 'iv:ciphertext'",
+    );
   }
 
   const key = await crypto.subtle.importKey(
@@ -167,7 +169,6 @@ export function removePrivateKey(orgId: string): void {
 export function hasPrivateKey(orgId: string): boolean {
   return localStorage.getItem(`${PRIVATE_KEY_PREFIX}${orgId}`) !== null;
 }
-
 
 function bufferToBase64(buffer: ArrayBuffer): string {
   const bytes = new Uint8Array(buffer);

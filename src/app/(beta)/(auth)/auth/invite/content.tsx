@@ -140,7 +140,9 @@ export default function InviteContent({
             });
             storePrivateKey(result.data._id, keyPair.privateKey);
           } catch {
-            console.error("Key registration failed, user will need admin approval later");
+            console.error(
+              "Key registration failed, user will need admin approval later",
+            );
           }
           router.push(`/${result.data.slug}`);
         } else {

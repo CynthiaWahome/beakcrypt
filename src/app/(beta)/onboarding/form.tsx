@@ -33,7 +33,13 @@ import { Confetti } from "~/components/ui/confetti";
 import type { Doc, Id } from "conv/_generated/dataModel";
 import { validateSlug } from "shared/reserved-slugs";
 import { createOrganization, inviteUser } from "./actions";
-import { useActionState, useCallback, useEffect, useRef, useState } from "react";
+import {
+  useActionState,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import {
   generateKeyPair,
   generateOrgKey,
@@ -120,40 +126,43 @@ export default function OnboardingForm() {
   const isOrgCreated = !!orgState.data?._id;
   const isInviteSent = !!inviteState.data?._id;
 
-  const setupKeys = useCallback(async (orgId: Id<"organizations">) => {
-    setKeySetupLoading(true);
-    setKeySetupError("");
-    
-    try {
-      const keyPair = await generateKeyPair();
-      const orgKey = await generateOrgKey();
-      const wrappedKey = await wrapOrgKey(orgKey, keyPair.publicKey);
+  const setupKeys = useCallback(
+    async (orgId: Id<"organizations">) => {
+      setKeySetupLoading(true);
+      setKeySetupError("");
 
-      const result = await registerKeyMutation({
-        orgId,
-        publicKey: JSON.stringify(keyPair.publicKey),
-        wrappedOrgKey: wrappedKey,
-      });
+      try {
+        const keyPair = await generateKeyPair();
+        const orgKey = await generateOrgKey();
+        const wrappedKey = await wrapOrgKey(orgKey, keyPair.publicKey);
 
-      if (isSuccess(result)) {
-        storePrivateKey(orgId, keyPair.privateKey);
-        setKeySetupDone(true);
-      } else {
-        setKeySetupError("Failed to register encryption key.");
+        const result = await registerKeyMutation({
+          orgId,
+          publicKey: JSON.stringify(keyPair.publicKey),
+          wrappedOrgKey: wrappedKey,
+        });
+
+        if (isSuccess(result)) {
+          storePrivateKey(orgId, keyPair.privateKey);
+          setKeySetupDone(true);
+        } else {
+          setKeySetupError("Failed to register encryption key.");
+        }
+      } catch {
+        setKeySetupError("Failed to set up encryption.");
+      } finally {
+        setKeySetupLoading(false);
       }
-    } catch {
-      setKeySetupError("Failed to set up encryption.");
-    } finally {
-      setKeySetupLoading(false);
-    }
-  }, [registerKeyMutation]);
+    },
+    [registerKeyMutation],
+  );
 
   useEffect(() => {
     if (!isOrgCreated || keySetupDone || keySetupStarted.current) return;
-    
+
     keySetupStarted.current = true;
     if (orgState.data?._id) {
-        setupKeys(orgState.data._id);
+      setupKeys(orgState.data._id);
     }
   }, [isOrgCreated, keySetupDone, orgState.data, setupKeys]);
 
@@ -443,7 +452,9 @@ export default function OnboardingForm() {
                       setIsSkipped(true);
                     }
                   }}
-                  disabled={(!keySetupDone && !keySetupError) || keySetupLoading}
+                  disabled={
+                    (!keySetupDone && !keySetupError) || keySetupLoading
+                  }
                 >
                   {keySetupLoading ? (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />

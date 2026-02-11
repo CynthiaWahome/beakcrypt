@@ -426,7 +426,9 @@ function EnvironmentSecrets({
     (env) => env._id !== environmentId,
   );
 
-  const [decryptedValues, setDecryptedValues] = useState<Record<string, string>>({});
+  const [decryptedValues, setDecryptedValues] = useState<
+    Record<string, string>
+  >({});
 
   const toggleReveal = async (id: string, encryptedValue: string) => {
     if (revealedIds.has(id)) {
@@ -495,7 +497,8 @@ function EnvironmentSecrets({
     if (!orgKey) return;
 
     try {
-      const decrypted = decryptedValues[id] ?? await decryptSecret(encryptedValue, orgKey);
+      const decrypted =
+        decryptedValues[id] ?? (await decryptSecret(encryptedValue, orgKey));
       await navigator.clipboard.writeText(decrypted);
       setDecryptedValues((prev) => ({ ...prev, [id]: decrypted }));
       setCopiedId(id);
@@ -980,7 +983,9 @@ function EnvironmentSecrets({
                           <Button
                             variant="ghost"
                             size="icon-xs"
-                            onClick={() => toggleReveal(secret._id, secret.encryptedValue)}
+                            onClick={() =>
+                              toggleReveal(secret._id, secret.encryptedValue)
+                            }
                             title={isRevealed ? "Hide value" : "Reveal value"}
                           >
                             {isRevealed ? (

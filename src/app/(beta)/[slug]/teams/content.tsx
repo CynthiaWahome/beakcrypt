@@ -1,6 +1,11 @@
 "use client";
 
-import { type Preloaded, usePreloadedQuery, useMutation, useQuery } from "convex/react";
+import {
+  type Preloaded,
+  usePreloadedQuery,
+  useMutation,
+  useQuery,
+} from "convex/react";
 import { api } from "conv/_generated/api";
 import { isSuccess, isFailure } from "conv/types";
 import type { Doc, Id } from "conv/_generated/dataModel";
@@ -752,8 +757,7 @@ function PendingKeyRow({
   const matchedMember = members.find(
     (m) => m.member.userId === memberKey.userId,
   );
-  const displayName =
-    matchedMember?.user?.name ?? memberKey.userId.slice(0, 8);
+  const displayName = matchedMember?.user?.name ?? memberKey.userId.slice(0, 8);
   const displayEmail = matchedMember?.user?.email ?? "";
   const displayImage = matchedMember?.user?.image ?? undefined;
 
@@ -788,9 +792,7 @@ function PendingKeyRow({
     <div className="flex items-center justify-between rounded-lg border border-amber-500/20 bg-amber-500/5 p-4">
       <div className="flex items-center gap-3">
         <Avatar className="size-9">
-          {displayImage && (
-            <AvatarImage src={displayImage} alt={displayName} />
-          )}
+          {displayImage && <AvatarImage src={displayImage} alt={displayName} />}
           <AvatarFallback className="text-xs">
             {getInitials(displayName)}
           </AvatarFallback>
@@ -837,9 +839,7 @@ function PendingKeyRow({
         )}
       </div>
 
-      {error && (
-        <p className="mt-2 text-sm text-red-400">{error}</p>
-      )}
+      {error && <p className="mt-2 text-sm text-red-400">{error}</p>}
     </div>
   );
 }

@@ -6,7 +6,13 @@ import { isFailure, isSuccess } from "conv/types";
 import type { Doc } from "conv/_generated/dataModel";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Check, Loader2, AlertTriangle, KeyRound, RefreshCw } from "lucide-react";
+import {
+  Check,
+  Loader2,
+  AlertTriangle,
+  KeyRound,
+  RefreshCw,
+} from "lucide-react";
 import { SidebarTrigger } from "~/components/ui/sidebar";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
@@ -154,7 +160,8 @@ export default function SettingsContent({ organization }: Props) {
             const plaintext = await decryptSecret(s.encryptedValue, orgKey);
             const newCiphertext = await encryptSecret(plaintext, newOrgKey);
             return {
-              secretId: s.secretId as import("conv/_generated/dataModel").Id<"secrets">,
+              secretId:
+                s.secretId as import("conv/_generated/dataModel").Id<"secrets">,
               encryptedValue: newCiphertext,
             };
           }),
@@ -306,9 +313,11 @@ export default function SettingsContent({ organization }: Props) {
                 <div className="min-w-0">
                   <p className="text-sm font-medium">Rotate Encryption Key</p>
                   <p className="text-xs text-muted-foreground">
-                    {activeKeys.length} active member{activeKeys.length !== 1 ? "s" : ""}
+                    {activeKeys.length} active member
+                    {activeKeys.length !== 1 ? "s" : ""}
                     {" · "}
-                    {allSecrets.length} secret{allSecrets.length !== 1 ? "s" : ""} to re-encrypt
+                    {allSecrets.length} secret
+                    {allSecrets.length !== 1 ? "s" : ""} to re-encrypt
                   </p>
                 </div>
               </div>
@@ -439,7 +448,8 @@ export default function SettingsContent({ organization }: Props) {
               <span className="font-medium text-foreground">
                 {activeKeys.length}
               </span>{" "}
-              member{activeKeys.length !== 1 ? "s" : ""}. This may take a moment.
+              member{activeKeys.length !== 1 ? "s" : ""}. This may take a
+              moment.
             </DialogDescription>
           </DialogHeader>
 

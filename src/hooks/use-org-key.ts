@@ -14,7 +14,6 @@ export type OrgKeyStatus =
   | "no_private_key"
   | "error";
 
-
 export function useOrgKey(orgId: Id<"organizations">) {
   const myKeyResult = useQuery(api.keys.getMyKey, { orgId });
   const [orgKey, setOrgKey] = useState<string | null>(null);
