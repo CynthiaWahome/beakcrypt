@@ -1,12 +1,12 @@
 "use client";
 
-import { useMutation } from "convex/react";
+import { useMutation, useQuery } from "convex/react";
 import { api } from "conv/_generated/api";
-import { isFailure } from "conv/types";
+import { isFailure, isSuccess } from "conv/types";
 import type { Doc } from "conv/_generated/dataModel";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Check, Loader2, AlertTriangle } from "lucide-react";
+import { Check, Loader2, AlertTriangle, KeyRound, RefreshCw } from "lucide-react";
 import { SidebarTrigger } from "~/components/ui/sidebar";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
@@ -19,6 +19,15 @@ import {
   DialogHeader,
   DialogTitle,
 } from "~/components/ui/dialog";
+import { useOrgKey } from "~/hooks/use-org-key";
+import {
+  generateOrgKey,
+  wrapOrgKey,
+  decryptSecret,
+  encryptSecret,
+  storePrivateKey,
+  getPrivateKey,
+} from "~/lib/crypto";
 
 interface Props {
   organization: Doc<"organizations">;
@@ -38,6 +47,30 @@ export default function SettingsContent({ organization }: Props) {
   const [slugError, setSlugError] = useState("");
   const [slugPending, startSlugTransition] = useTransition();
   const [slugConfirmOpen, setSlugConfirmOpen] = useState(false);
+
+  const { orgKey, status: keyStatus } = useOrgKey(organization._id);
+  const activeKeysResult = useQuery(api.keys.listActiveKeys, {
+    orgId: organization._id,
+  });
+  const allSecretsResult = useQuery(api.secrets.listAllOrgSecrets, {
+    orgId: organization._id,
+  });
+  const rotateKeyMutation = useMutation(api.keys.rotateOrgKey);
+  const registerKeyMutation = useMutation(api.keys.registerKey);
+
+  const [rotateConfirmOpen, setRotateConfirmOpen] = useState(false);
+  const [rotateError, setRotateError] = useState("");
+  const [rotatePending, startRotateTransition] = useTransition();
+  const [rotateSuccess, setRotateSuccess] = useState(false);
+
+  const activeKeys =
+    activeKeysResult && isSuccess(activeKeysResult)
+      ? activeKeysResult.data
+      : [];
+  const allSecrets =
+    allSecretsResult && isSuccess(allSecretsResult)
+      ? allSecretsResult.data
+      : [];
 
   const nameChanged = name !== organization.name;
   const slugChanged = slug !== organization.slug;
@@ -83,6 +116,55 @@ export default function SettingsContent({ organization }: Props) {
         router.replace(`/${result.data.slug}/settings`);
       } catch {
         setSlugError("Something went wrong.");
+      }
+    });
+  };
+
+  const handleRotateKey = () => {
+    setRotateError("");
+    setRotateSuccess(false);
+    startRotateTransition(async () => {
+      try {
+        if (!orgKey) {
+          setRotateError("Your encryption key is not available.");
+          return;
+        }
+
+        const newOrgKey = await generateOrgKey();
+
+        const wrappedKeys = await Promise.all(
+          activeKeys.map(async (mk) => {
+            const publicKeyJwk = JSON.parse(mk.publicKey) as JsonWebKey;
+            const wrappedOrgKey = await wrapOrgKey(newOrgKey, publicKeyJwk);
+            return { keyId: mk._id, wrappedOrgKey };
+          }),
+        );
+        const reEncryptedSecrets = await Promise.all(
+          allSecrets.map(async (s) => {
+            const plaintext = await decryptSecret(s.encryptedValue, orgKey);
+            const newCiphertext = await encryptSecret(plaintext, newOrgKey);
+            return {
+              secretId: s.secretId as import("conv/_generated/dataModel").Id<"secrets">,
+              encryptedValue: newCiphertext,
+            };
+          }),
+        );
+        const result = await rotateKeyMutation({
+          orgId: organization._id,
+          wrappedKeys,
+          reEncryptedSecrets,
+        });
+
+        if (isFailure(result)) {
+          setRotateError(result.error);
+          return;
+        }
+
+        setRotateSuccess(true);
+        setRotateConfirmOpen(false);
+        setTimeout(() => setRotateSuccess(false), 3000);
+      } catch {
+        setRotateError("Key rotation failed. Please try again.");
       }
     });
   };
@@ -199,6 +281,65 @@ export default function SettingsContent({ organization }: Props) {
 
           <section className="space-y-4">
             <div>
+              <h2 className="text-sm font-medium">Encryption</h2>
+              <p className="text-xs text-muted-foreground mt-1">
+                Manage your organization's encryption key. Rotating the key will
+                generate a new encryption key, re-encrypt all secrets, and
+                re-wrap the key for all active members.
+              </p>
+            </div>
+            <div className="rounded-lg border p-4 flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="flex size-9 items-center justify-center rounded-full bg-muted shrink-0">
+                  <KeyRound className="size-4 text-muted-foreground" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-medium">Rotate Encryption Key</p>
+                  <p className="text-xs text-muted-foreground">
+                    {activeKeys.length} active member{activeKeys.length !== 1 ? "s" : ""}
+                    {" · "}
+                    {allSecrets.length} secret{allSecrets.length !== 1 ? "s" : ""} to re-encrypt
+                  </p>
+                </div>
+              </div>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setRotateConfirmOpen(true)}
+                disabled={
+                  keyStatus !== "ready" ||
+                  rotatePending
+                }
+              >
+                {rotatePending ? (
+                  <>
+                    <Loader2 className="animate-spin" />
+                    Rotating...
+                  </>
+                ) : rotateSuccess ? (
+                  <>
+                    <Check />
+                    Rotated
+                  </>
+                ) : (
+                  <>
+                    <RefreshCw />
+                    Rotate Key
+                  </>
+                )}
+              </Button>
+            </div>
+            {rotateError && (
+              <p className="text-sm text-red-400 animate-in fade-in slide-in-from-top-1">
+                {rotateError}
+              </p>
+            )}
+          </section>
+
+          <Separator />
+
+          <section className="space-y-4">
+            <div>
               <h2 className="text-sm font-medium text-destructive">
                 Danger Zone
               </h2>
@@ -265,6 +406,52 @@ export default function SettingsContent({ organization }: Props) {
                 <>
                   <AlertTriangle />
                   Confirm Change
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={rotateConfirmOpen} onOpenChange={setRotateConfirmOpen}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Rotate Encryption Key</DialogTitle>
+            <DialogDescription>
+              This will generate a new encryption key, re-encrypt all{" "}
+              <span className="font-medium text-foreground">
+                {allSecrets.length}
+              </span>{" "}
+              secret{allSecrets.length !== 1 ? "s" : ""} and update keys for{" "}
+              <span className="font-medium text-foreground">
+                {activeKeys.length}
+              </span>{" "}
+              member{activeKeys.length !== 1 ? "s" : ""}. This may take a moment.
+            </DialogDescription>
+          </DialogHeader>
+
+          {rotateError && (
+            <p className="text-sm text-red-400 animate-in fade-in slide-in-from-top-1">
+              {rotateError}
+            </p>
+          )}
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setRotateConfirmOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button onClick={handleRotateKey} disabled={rotatePending}>
+              {rotatePending ? (
+                <>
+                  <Loader2 className="animate-spin" />
+                  Rotating...
+                </>
+              ) : (
+                <>
+                  <RefreshCw />
+                  Confirm Rotation
                 </>
               )}
             </Button>

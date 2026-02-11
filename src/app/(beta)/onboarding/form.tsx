@@ -22,7 +22,7 @@ import {
   InputGroupInput,
 } from "~/components/ui/input-group";
 import Link from "next/link";
-import { useQuery } from "convex/react";
+import { useQuery, useMutation } from "convex/react";
 import { api } from "conv/_generated/api";
 import { isSuccess } from "conv/types";
 import { Input } from "~/components/ui/input";
@@ -33,7 +33,13 @@ import { Confetti } from "~/components/ui/confetti";
 import type { Doc } from "conv/_generated/dataModel";
 import { validateSlug } from "shared/reserved-slugs";
 import { createOrganization, inviteUser } from "./actions";
-import { useActionState, useEffect, useState } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
+import {
+  generateKeyPair,
+  generateOrgKey,
+  wrapOrgKey,
+  storePrivateKey,
+} from "~/lib/crypto";
 
 const initialOrgState: Response<
   Doc<"organizations">,
@@ -105,9 +111,43 @@ export default function OnboardingForm() {
     shouldValidateSlug && (isSlugInvalid || isSlugTakenResult === true);
 
   const [isSkipped, setIsSkipped] = useState(false);
+  const [keySetupDone, setKeySetupDone] = useState(false);
+  const [keySetupError, setKeySetupError] = useState("");
+  const keySetupStarted = useRef(false);
+  const registerKeyMutation = useMutation(api.keys.registerKey);
 
   const isOrgCreated = !!orgState.data?._id;
   const isInviteSent = !!inviteState.data?._id;
+
+  useEffect(() => {
+    if (!isOrgCreated || keySetupDone || keySetupStarted.current) return;
+    const orgId = orgState.data!._id;
+
+    keySetupStarted.current = true;
+
+    (async () => {
+      try {
+        const keyPair = await generateKeyPair();
+        const orgKey = await generateOrgKey();
+        const wrappedKey = await wrapOrgKey(orgKey, keyPair.publicKey);
+
+        const result = await registerKeyMutation({
+          orgId,
+          publicKey: JSON.stringify(keyPair.publicKey),
+          wrappedOrgKey: wrappedKey,
+        });
+
+        if (isSuccess(result)) {
+          storePrivateKey(orgId, keyPair.privateKey);
+          setKeySetupDone(true);
+        } else {
+          setKeySetupError("Failed to register encryption key.");
+        }
+      } catch {
+        setKeySetupError("Failed to set up encryption.");
+      }
+    })();
+  }, [isOrgCreated, keySetupDone, orgState.data, registerKeyMutation]);
 
   const activeState = isOrgCreated ? inviteState : orgState;
   const hasError = "error" in activeState && !!activeState.error;

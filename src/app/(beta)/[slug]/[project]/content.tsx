@@ -22,6 +22,8 @@ import {
   Loader2,
   ArrowRightLeft,
   MoreVertical,
+  ShieldAlert,
+  Lock,
 } from "lucide-react";
 import Link from "next/link";
 import { SidebarTrigger } from "~/components/ui/sidebar";
@@ -60,6 +62,8 @@ import {
 } from "~/components/ui/empty";
 import { Skeleton } from "~/components/ui/skeleton";
 import LinkRepoDialog from "./link-repo-dialog";
+import { useOrgKey } from "~/hooks/use-org-key";
+import { encryptSecret, decryptSecret } from "~/lib/crypto";
 
 interface ParsedEntry {
   key: string;
@@ -164,6 +168,7 @@ export default function ProjectContent({
                 environmentId={env._id}
                 environmentName={env.name}
                 allEnvironments={environments}
+                orgId={project.orgId}
                 onEnvDeleted={() => setActiveEnvId(null)}
               />
             </TabsContent>
@@ -365,13 +370,16 @@ function EnvironmentSecrets({
   environmentId,
   environmentName,
   allEnvironments,
+  orgId,
   onEnvDeleted,
 }: {
   environmentId: Id<"environments">;
   environmentName: string;
   allEnvironments: Doc<"environments">[];
+  orgId: Id<"organizations">;
   onEnvDeleted: () => void;
 }) {
+  const { orgKey, status: keyStatus } = useOrgKey(orgId);
   const secretsResult = useQuery(api.secrets.list, { environmentId });
   const createMutation = useMutation(api.secrets.create);
   const bulkCreateMutation = useMutation(api.secrets.bulkCreate);
@@ -418,19 +426,83 @@ function EnvironmentSecrets({
     (env) => env._id !== environmentId,
   );
 
-  const toggleReveal = (id: string) => {
-    setRevealedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
+  const [decryptedValues, setDecryptedValues] = useState<Record<string, string>>({});
+
+  const toggleReveal = async (id: string, encryptedValue: string) => {
+    if (revealedIds.has(id)) {
+      setRevealedIds((prev) => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
+      return;
+    }
+
+    if (!orgKey) return;
+
+    try {
+      if (!decryptedValues[id]) {
+        const decrypted = await decryptSecret(encryptedValue, orgKey);
+        setDecryptedValues((prev) => ({ ...prev, [id]: decrypted }));
+      }
+      setRevealedIds((prev) => {
+        const next = new Set(prev);
+        next.add(id);
+        return next;
+      });
+    } catch {
+      console.error("Failed to decrypt secret");
+    }
   };
 
-  const handleCopy = (id: string, value: string) => {
-    navigator.clipboard.writeText(value);
-    setCopiedId(id);
-    setTimeout(() => setCopiedId(null), 1500);
+  const allRevealed =
+    secrets !== null &&
+    secrets.length > 0 &&
+    secrets.every((s) => revealedIds.has(s._id));
+
+  const toggleRevealAll = async () => {
+    if (!secrets || secrets.length === 0) return;
+
+    if (allRevealed) {
+      setRevealedIds(new Set());
+      return;
+    }
+
+    if (!orgKey) return;
+
+    try {
+      const toDecrypt = secrets.filter((s) => !decryptedValues[s._id]);
+      if (toDecrypt.length > 0) {
+        const results = await Promise.all(
+          toDecrypt.map(async (s) => ({
+            id: s._id,
+            value: await decryptSecret(s.encryptedValue, orgKey),
+          })),
+        );
+        setDecryptedValues((prev) => {
+          const next = { ...prev };
+          for (const r of results) next[r.id] = r.value;
+          return next;
+        });
+      }
+      setRevealedIds(new Set(secrets.map((s) => s._id)));
+    } catch {
+      console.error("Failed to decrypt secrets");
+    }
+  };
+
+  const handleCopy = async (id: string, encryptedValue: string) => {
+    if (!orgKey) return;
+
+    try {
+      const decrypted = decryptedValues[id] ?? await decryptSecret(encryptedValue, orgKey);
+      await navigator.clipboard.writeText(decrypted);
+      setDecryptedValues((prev) => ({ ...prev, [id]: decrypted }));
+      setCopiedId(id);
+      setTimeout(() => setCopiedId(null), 1500);
+    } catch {
+      console.error("Failed to decrypt secret for copy");
+    }
   };
 
   const handleDelete = (id: Id<"secrets">) => {
@@ -468,13 +540,18 @@ function EnvironmentSecrets({
       setAddError("Key is required");
       return;
     }
+    if (!orgKey) {
+      setAddError("Encryption key not available");
+      return;
+    }
     setAddError("");
     startTransition(async () => {
       try {
+        const encrypted = await encryptSecret(newValue, orgKey);
         const result = await createMutation({
           environmentId,
           key: newKey.trim().toUpperCase(),
-          encryptedValue: newValue,
+          encryptedValue: encrypted,
         });
         if (isFailure(result)) {
           setAddError(result.error);
@@ -491,15 +568,22 @@ function EnvironmentSecrets({
 
   const handleAddBulk = () => {
     if (addRows.length === 0) return;
+    if (!orgKey) {
+      setAddError("Encryption key not available");
+      return;
+    }
     setAddError("");
     startTransition(async () => {
       try {
+        const encryptedSecrets = await Promise.all(
+          addRows.map(async (r) => ({
+            key: r.key,
+            encryptedValue: await encryptSecret(r.value, orgKey),
+          })),
+        );
         const result = await bulkCreateMutation({
           environmentId,
-          secrets: addRows.map((r) => ({
-            key: r.key,
-            encryptedValue: r.value,
-          })),
+          secrets: encryptedSecrets,
           overwrite: true,
         });
         if (isFailure(result)) {
@@ -587,6 +671,62 @@ function EnvironmentSecrets({
     return <SecretsTableSkeleton />;
   }
 
+  if (keyStatus === "loading") {
+    return <SecretsTableSkeleton />;
+  }
+
+  if (keyStatus === "pending_approval") {
+    return (
+      <Empty className="min-h-[40vh]">
+        <EmptyHeader>
+          <EmptyMedia variant="icon">
+            <Lock />
+          </EmptyMedia>
+          <EmptyTitle>Encryption Key Pending</EmptyTitle>
+          <EmptyDescription>
+            Your encryption key is awaiting admin approval. You will be able to
+            view and manage secrets once an admin approves your key.
+          </EmptyDescription>
+        </EmptyHeader>
+      </Empty>
+    );
+  }
+
+  if (keyStatus === "no_private_key") {
+    return (
+      <Empty className="min-h-[40vh]">
+        <EmptyHeader>
+          <EmptyMedia variant="icon">
+            <ShieldAlert />
+          </EmptyMedia>
+          <EmptyTitle>Private Key Not Found</EmptyTitle>
+          <EmptyDescription>
+            Your encryption private key was not found in this browser. This can
+            happen if you cleared your browser data. Contact an admin to
+            re-approve your access.
+          </EmptyDescription>
+        </EmptyHeader>
+      </Empty>
+    );
+  }
+
+  if (keyStatus === "error") {
+    return (
+      <Empty className="min-h-[40vh]">
+        <EmptyHeader>
+          <EmptyMedia variant="icon">
+            <ShieldAlert />
+          </EmptyMedia>
+          <EmptyTitle>Encryption Error</EmptyTitle>
+          <EmptyDescription>
+            There was a problem with your encryption key. Contact an admin for
+            assistance.
+          </EmptyDescription>
+        </EmptyHeader>
+      </Empty>
+    );
+  }
+
   const hasSecrets = secrets.length > 0;
   const hasPendingRows = addRows.length > 0;
   const hasSyncTargets = otherEnvironments.length > 0;
@@ -647,19 +787,18 @@ function EnvironmentSecrets({
                   Sync
                 </Button>
               )}
-              {!showAddRow && !hasPendingRows && (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => {
-                    setShowAddRow(true);
-                    setTimeout(() => keyInputRef.current?.focus(), 0);
-                  }}
-                >
-                  <Plus />
-                  Add
-                </Button>
-              )}
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={showAddRow || hasPendingRows}
+                onClick={() => {
+                  setShowAddRow(true);
+                  setTimeout(() => keyInputRef.current?.focus(), 0);
+                }}
+              >
+                <Plus />
+                Add
+              </Button>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="icon-sm" title="More options">
@@ -667,6 +806,12 @@ function EnvironmentSecrets({
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
+                  {hasSecrets && (
+                    <DropdownMenuItem onClick={toggleRevealAll}>
+                      {allRevealed ? <EyeOff /> : <Eye />}
+                      {allRevealed ? "Hide all secrets" : "Reveal all secrets"}
+                    </DropdownMenuItem>
+                  )}
                   {hasSecrets && (
                     <DropdownMenuItem
                       className="text-destructive focus:text-destructive"
@@ -698,72 +843,6 @@ function EnvironmentSecrets({
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {secrets.map((secret) => {
-                  const isRevealed = revealedIds.has(secret._id);
-                  const isDeleting = deletingId === secret._id;
-                  const isCopied = copiedId === secret._id;
-
-                  return (
-                    <TableRow
-                      key={secret._id}
-                      className={isDeleting ? "opacity-50" : ""}
-                    >
-                      <TableCell className="font-mono text-sm font-medium">
-                        {secret.key}
-                      </TableCell>
-                      <TableCell className="font-mono text-sm text-muted-foreground">
-                        <span className="block max-w-md truncate">
-                          {isRevealed
-                            ? secret.encryptedValue
-                            : "•".repeat(
-                                Math.min(secret.encryptedValue.length || 8, 32),
-                              )}
-                        </span>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex items-center justify-end gap-0.5">
-                          <Button
-                            variant="ghost"
-                            size="icon-xs"
-                            onClick={() => toggleReveal(secret._id)}
-                            title={isRevealed ? "Hide value" : "Reveal value"}
-                          >
-                            {isRevealed ? (
-                              <EyeOff className="size-3.5" />
-                            ) : (
-                              <Eye className="size-3.5" />
-                            )}
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon-xs"
-                            onClick={() =>
-                              handleCopy(secret._id, secret.encryptedValue)
-                            }
-                            title="Copy value"
-                          >
-                            {isCopied ? (
-                              <Check className="size-3.5 text-emerald-500" />
-                            ) : (
-                              <Copy className="size-3.5" />
-                            )}
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon-xs"
-                            disabled={isDeleting}
-                            onClick={() => handleDelete(secret._id)}
-                            className="text-destructive hover:text-destructive"
-                            title="Delete secret"
-                          >
-                            <Trash2 className="size-3.5" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-
                 {showAddRow && !hasPendingRows && (
                   <TableRow className="bg-muted/30">
                     <TableCell>
@@ -875,6 +954,70 @@ function EnvironmentSecrets({
                     </TableCell>
                   </TableRow>
                 ))}
+
+                {secrets.map((secret) => {
+                  const isRevealed = revealedIds.has(secret._id);
+                  const isDeleting = deletingId === secret._id;
+                  const isCopied = copiedId === secret._id;
+
+                  return (
+                    <TableRow
+                      key={secret._id}
+                      className={isDeleting ? "opacity-50" : ""}
+                    >
+                      <TableCell className="font-mono text-sm font-medium">
+                        {secret.key}
+                      </TableCell>
+                      <TableCell className="font-mono text-sm text-muted-foreground">
+                        <span className="block max-w-md truncate">
+                          {isRevealed
+                            ? (decryptedValues[secret._id] ?? "Decrypting...")
+                            : "•".repeat(16)}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex items-center justify-end gap-0.5">
+                          <Button
+                            variant="ghost"
+                            size="icon-xs"
+                            onClick={() => toggleReveal(secret._id, secret.encryptedValue)}
+                            title={isRevealed ? "Hide value" : "Reveal value"}
+                          >
+                            {isRevealed ? (
+                              <EyeOff className="size-3.5" />
+                            ) : (
+                              <Eye className="size-3.5" />
+                            )}
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon-xs"
+                            onClick={() =>
+                              handleCopy(secret._id, secret.encryptedValue)
+                            }
+                            title="Copy value"
+                          >
+                            {isCopied ? (
+                              <Check className="size-3.5 text-emerald-500" />
+                            ) : (
+                              <Copy className="size-3.5" />
+                            )}
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon-xs"
+                            disabled={isDeleting}
+                            onClick={() => handleDelete(secret._id)}
+                            className="text-destructive hover:text-destructive"
+                            title="Delete secret"
+                          >
+                            <Trash2 className="size-3.5" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           </div>

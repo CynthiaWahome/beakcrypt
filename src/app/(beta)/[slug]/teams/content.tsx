@@ -1,6 +1,6 @@
 "use client";
 
-import { type Preloaded, usePreloadedQuery, useMutation } from "convex/react";
+import { type Preloaded, usePreloadedQuery, useMutation, useQuery } from "convex/react";
 import { api } from "conv/_generated/api";
 import { isSuccess, isFailure } from "conv/types";
 import type { Doc, Id } from "conv/_generated/dataModel";
@@ -17,6 +17,8 @@ import {
   X,
   Clock,
   RefreshCw,
+  KeyRound,
+  Check,
 } from "lucide-react";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
@@ -47,6 +49,8 @@ import {
 } from "~/components/ui/empty";
 import { SidebarTrigger } from "~/components/ui/sidebar";
 import { getInitials } from "~/lib/utils";
+import { useOrgKey } from "~/hooks/use-org-key";
+import { wrapOrgKey, unwrapOrgKey, getPrivateKey } from "~/lib/crypto";
 
 type MemberItem = {
   member: Doc<"organizationMembers">;
@@ -86,6 +90,17 @@ export default function TeamsContent({
     : null;
   const isOrgAdmin =
     myMembership?.role === "owner" || myMembership?.role === "admin";
+
+  const pendingKeysResult = useQuery(
+    api.keys.listPendingKeys,
+    isOrgAdmin ? { orgId: organization._id } : "skip",
+  );
+  const pendingKeys =
+    pendingKeysResult && isSuccess(pendingKeysResult)
+      ? pendingKeysResult.data
+      : [];
+
+  const { orgKey } = useOrgKey(organization._id);
 
   const inviteMutation = useMutation(api.invites.create);
   const [inviteOpen, setInviteOpen] = useState(false);
@@ -209,6 +224,28 @@ export default function TeamsContent({
             </div>
           )}
         </section>
+
+        {isOrgAdmin && pendingKeys.length > 0 && (
+          <section className="space-y-4">
+            <h2 className="text-sm font-medium text-muted-foreground">
+              Pending Key Approvals ({pendingKeys.length})
+            </h2>
+            <p className="text-xs text-muted-foreground">
+              These members have joined but need their encryption key approved
+              before they can access secrets.
+            </p>
+            <div className="flex flex-col gap-2">
+              {pendingKeys.map((pk) => (
+                <PendingKeyRow
+                  key={pk._id}
+                  memberKey={pk}
+                  orgKey={orgKey}
+                  members={members}
+                />
+              ))}
+            </div>
+          </section>
+        )}
       </div>
 
       <Dialog open={inviteOpen} onOpenChange={handleInviteClose}>
@@ -695,5 +732,114 @@ function InviteRow({
         </DialogContent>
       </Dialog>
     </>
+  );
+}
+
+function PendingKeyRow({
+  memberKey,
+  orgKey,
+  members,
+}: {
+  memberKey: Doc<"memberKeys">;
+  orgKey: string | null;
+  members: MemberItem[];
+}) {
+  const approveMutation = useMutation(api.keys.approveKey);
+  const [isPending, startTransition] = useTransition();
+  const [error, setError] = useState("");
+  const [approved, setApproved] = useState(false);
+
+  const matchedMember = members.find(
+    (m) => m.member.userId === memberKey.userId,
+  );
+  const displayName =
+    matchedMember?.user?.name ?? memberKey.userId.slice(0, 8);
+  const displayEmail = matchedMember?.user?.email ?? "";
+  const displayImage = matchedMember?.user?.image ?? undefined;
+
+  const handleApprove = () => {
+    setError("");
+    startTransition(async () => {
+      try {
+        if (!orgKey) {
+          setError("Your encryption key is not available. Try refreshing.");
+          return;
+        }
+
+        const publicKeyJwk = JSON.parse(memberKey.publicKey) as JsonWebKey;
+        const wrappedKey = await wrapOrgKey(orgKey, publicKeyJwk);
+        const result = await approveMutation({
+          keyId: memberKey._id,
+          wrappedOrgKey: wrappedKey,
+        });
+
+        if (isSuccess(result)) {
+          setApproved(true);
+        } else if (isFailure(result)) {
+          setError(result.error);
+        }
+      } catch {
+        setError("Something went wrong during key approval.");
+      }
+    });
+  };
+
+  return (
+    <div className="flex items-center justify-between rounded-lg border border-amber-500/20 bg-amber-500/5 p-4">
+      <div className="flex items-center gap-3">
+        <Avatar className="size-9">
+          {displayImage && (
+            <AvatarImage src={displayImage} alt={displayName} />
+          )}
+          <AvatarFallback className="text-xs">
+            {getInitials(displayName)}
+          </AvatarFallback>
+        </Avatar>
+        <div className="min-w-0">
+          <p className="text-sm font-medium truncate">{displayName}</p>
+          {displayEmail && (
+            <p className="text-xs text-muted-foreground truncate">
+              {displayEmail}
+            </p>
+          )}
+        </div>
+      </div>
+
+      <div className="flex items-center gap-2">
+        <Badge variant="secondary" className="gap-1 text-xs">
+          <KeyRound className="size-3" />
+          Pending
+        </Badge>
+        {approved ? (
+          <Badge className="gap-1 text-xs bg-emerald-500/10 text-emerald-400 border-emerald-500/20">
+            <Check className="size-3" />
+            Approved
+          </Badge>
+        ) : (
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={handleApprove}
+            disabled={isPending}
+          >
+            {isPending ? (
+              <>
+                <Loader2 className="animate-spin" />
+                Approving...
+              </>
+            ) : (
+              <>
+                <Check />
+                Approve Key
+              </>
+            )}
+          </Button>
+        )}
+      </div>
+
+      {error && (
+        <p className="mt-2 text-sm text-red-400">{error}</p>
+      )}
+    </div>
   );
 }

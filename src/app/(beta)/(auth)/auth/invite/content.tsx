@@ -28,6 +28,7 @@ import {
 import { Preloaded, usePreloadedQuery } from "convex/react";
 import AppLoader from "~/components/loader";
 import { getInitials } from "~/lib/utils";
+import { generateKeyPair, storePrivateKey } from "~/lib/crypto";
 
 interface InviteContentProps {
   preloadedInvite: Preloaded<typeof api.invites.getInvite>;
@@ -48,6 +49,7 @@ export default function InviteContent({
     : null;
   const acceptMutation = useMutation(api.invites.accept);
   const declineMutation = useMutation(api.invites.decline);
+  const registerKeyMutation = useMutation(api.keys.registerKey);
 
   const [isPending, startTransition] = useTransition();
   const [actionType, setActionType] = useState<"accept" | "decline" | null>(
@@ -130,6 +132,16 @@ export default function InviteContent({
       try {
         const result = await acceptMutation({ token });
         if (isSuccess(result)) {
+          try {
+            const keyPair = await generateKeyPair();
+            await registerKeyMutation({
+              orgId: result.data._id,
+              publicKey: JSON.stringify(keyPair.publicKey),
+            });
+            storePrivateKey(result.data._id, keyPair.privateKey);
+          } catch {
+            console.error("Key registration failed, user will need admin approval later");
+          }
           router.push(`/${result.data.slug}`);
         } else {
           console.error("Failed to accept invite:", result.error);
