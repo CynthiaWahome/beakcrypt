@@ -263,6 +263,7 @@ export const rotateOrgKey = mutation({
     const authResult = await requireOrgAdmin(ctx, args.orgId);
     if (isFailure(authResult)) return authResult;
 
+    let keysUpdated = 0;
     for (const wk of args.wrappedKeys) {
       const key = await ctx.db.get(wk.keyId);
       if (!key || key.orgId !== args.orgId || key.status !== "active") continue;
@@ -271,8 +272,10 @@ export const rotateOrgKey = mutation({
         wrappedOrgKey: wk.wrappedOrgKey,
         updatedAt: Date.now(),
       });
+      keysUpdated++;
     }
 
+    let secretsUpdated = 0;
     for (const rs of args.reEncryptedSecrets) {
       const secret = await ctx.db.get(rs.secretId);
       if (!secret) continue;
@@ -286,11 +289,12 @@ export const rotateOrgKey = mutation({
         encryptedValue: rs.encryptedValue,
         updatedAt: Date.now(),
       });
+      secretsUpdated++;
     }
 
     return success({
-      keysUpdated: args.wrappedKeys.length,
-      secretsUpdated: args.reEncryptedSecrets.length,
+      keysUpdated,
+      secretsUpdated,
     });
   },
 });

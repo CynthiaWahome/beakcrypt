@@ -30,10 +30,10 @@ import { Button } from "~/components/ui/button";
 import type { Response } from "~/types/response";
 import { Spinner } from "~/components/ui/spinner";
 import { Confetti } from "~/components/ui/confetti";
-import type { Doc } from "conv/_generated/dataModel";
+import type { Doc, Id } from "conv/_generated/dataModel";
 import { validateSlug } from "shared/reserved-slugs";
 import { createOrganization, inviteUser } from "./actions";
-import { useActionState, useEffect, useRef, useState } from "react";
+import { useActionState, useCallback, useEffect, useRef, useState } from "react";
 import {
   generateKeyPair,
   generateOrgKey,
@@ -113,41 +113,49 @@ export default function OnboardingForm() {
   const [isSkipped, setIsSkipped] = useState(false);
   const [keySetupDone, setKeySetupDone] = useState(false);
   const [keySetupError, setKeySetupError] = useState("");
+  const [keySetupLoading, setKeySetupLoading] = useState(false);
   const keySetupStarted = useRef(false);
   const registerKeyMutation = useMutation(api.keys.registerKey);
 
   const isOrgCreated = !!orgState.data?._id;
   const isInviteSent = !!inviteState.data?._id;
 
+  const setupKeys = useCallback(async (orgId: Id<"organizations">) => {
+    setKeySetupLoading(true);
+    setKeySetupError("");
+    
+    try {
+      const keyPair = await generateKeyPair();
+      const orgKey = await generateOrgKey();
+      const wrappedKey = await wrapOrgKey(orgKey, keyPair.publicKey);
+
+      const result = await registerKeyMutation({
+        orgId,
+        publicKey: JSON.stringify(keyPair.publicKey),
+        wrappedOrgKey: wrappedKey,
+      });
+
+      if (isSuccess(result)) {
+        storePrivateKey(orgId, keyPair.privateKey);
+        setKeySetupDone(true);
+      } else {
+        setKeySetupError("Failed to register encryption key.");
+      }
+    } catch {
+      setKeySetupError("Failed to set up encryption.");
+    } finally {
+      setKeySetupLoading(false);
+    }
+  }, [registerKeyMutation]);
+
   useEffect(() => {
     if (!isOrgCreated || keySetupDone || keySetupStarted.current) return;
-    const orgId = orgState.data!._id;
-
+    
     keySetupStarted.current = true;
-
-    (async () => {
-      try {
-        const keyPair = await generateKeyPair();
-        const orgKey = await generateOrgKey();
-        const wrappedKey = await wrapOrgKey(orgKey, keyPair.publicKey);
-
-        const result = await registerKeyMutation({
-          orgId,
-          publicKey: JSON.stringify(keyPair.publicKey),
-          wrappedOrgKey: wrappedKey,
-        });
-
-        if (isSuccess(result)) {
-          storePrivateKey(orgId, keyPair.privateKey);
-          setKeySetupDone(true);
-        } else {
-          setKeySetupError("Failed to register encryption key.");
-        }
-      } catch {
-        setKeySetupError("Failed to set up encryption.");
-      }
-    })();
-  }, [isOrgCreated, keySetupDone, orgState.data, registerKeyMutation]);
+    if (orgState.data?._id) {
+        setupKeys(orgState.data._id);
+    }
+  }, [isOrgCreated, keySetupDone, orgState.data, setupKeys]);
 
   const activeState = isOrgCreated ? inviteState : orgState;
   const hasError = "error" in activeState && !!activeState.error;
@@ -417,24 +425,48 @@ export default function OnboardingForm() {
                 </p>
               )}
 
+              {keySetupError && (
+                <p className="text-sm text-red-400 animate-in fade-in slide-in-from-top-1">
+                  {keySetupError}
+                </p>
+              )}
+
               <div className="flex gap-2 mt-2">
                 <Button
                   type="button"
                   variant="ghost"
-                  className="flex-1 text-zinc-400 hover:text-white"
-                  onClick={() => setIsSkipped(true)}
+                  className={`flex-1 ${keySetupError ? "text-red-400 hover:text-red-300 hover:bg-red-500/10" : "text-zinc-400 hover:text-white"}`}
+                  onClick={() => {
+                    if (keySetupError && orgState.data?._id) {
+                      setupKeys(orgState.data._id);
+                    } else {
+                      setIsSkipped(true);
+                    }
+                  }}
+                  disabled={(!keySetupDone && !keySetupError) || keySetupLoading}
                 >
-                  Skip
+                  {keySetupLoading ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : keySetupError ? (
+                    "Retry Setup"
+                  ) : (
+                    "Skip"
+                  )}
                 </Button>
                 <Button
                   type="submit"
                   className="flex-2"
-                  disabled={invitePending}
+                  disabled={invitePending || !keySetupDone}
                 >
                   {invitePending ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                       Sending...
+                    </>
+                  ) : !keySetupDone && !keySetupError ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Setting up security...
                     </>
                   ) : (
                     "Complete Setup"

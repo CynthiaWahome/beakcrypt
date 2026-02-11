@@ -130,6 +130,16 @@ export default function SettingsContent({ organization }: Props) {
           return;
         }
 
+        if (
+          !activeKeysResult ||
+          !isSuccess(activeKeysResult) ||
+          !allSecretsResult ||
+          !isSuccess(allSecretsResult)
+        ) {
+          setRotateError("Data is still loading. Please try again.");
+          return;
+        }
+
         const newOrgKey = await generateOrgKey();
 
         const wrappedKeys = await Promise.all(
@@ -308,7 +318,11 @@ export default function SettingsContent({ organization }: Props) {
                 onClick={() => setRotateConfirmOpen(true)}
                 disabled={
                   keyStatus !== "ready" ||
-                  rotatePending
+                  rotatePending ||
+                  !activeKeysResult ||
+                  !isSuccess(activeKeysResult) ||
+                  !allSecretsResult ||
+                  !isSuccess(allSecretsResult)
                 }
               >
                 {rotatePending ? (
