@@ -34,10 +34,6 @@ export const registerKey = mutation({
       );
     }
 
-    if (existing) {
-      await ctx.db.delete(existing._id);
-    }
-
     const org = await ctx.db.get(args.orgId);
     if (!org) {
       return failure(
@@ -45,6 +41,10 @@ export const registerKey = mutation({
         "org:not_found",
         "Organization not found",
       );
+    }
+
+    if (existing) {
+      await ctx.db.delete(existing._id);
     }
 
     const isOwner = org.ownerId === user._id;
@@ -169,6 +169,9 @@ export const getMyKey = query({
   handler: async (ctx, args): Promise<Result<Doc<"memberKeys"> | null>> => {
     const userResult = await getAuthUser(ctx);
     if (isFailure(userResult)) return userResult;
+
+    const membershipResult = await requireOrgMember(ctx, args.orgId);
+    if (isFailure(membershipResult)) return membershipResult;
 
     const memberKey = await ctx.db
       .query("memberKeys")

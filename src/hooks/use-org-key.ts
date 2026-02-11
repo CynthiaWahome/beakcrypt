@@ -63,15 +63,24 @@ export function useOrgKey(orgId: Id<"organizations">) {
     }
 
     unwrapAttempted.current = true;
+    let isCancelled = false;
 
     unwrapOrgKey(memberKey.wrappedOrgKey, privateKey)
       .then((key) => {
-        setOrgKey(key);
-        setStatus("ready");
+        if (!isCancelled) {
+          setOrgKey(key);
+          setStatus("ready");
+        }
       })
       .catch(() => {
-        setStatus("error");
+        if (!isCancelled) {
+          setStatus("error");
+        }
       });
+
+    return () => {
+      isCancelled = true;
+    };
   }, [myKeyResult, orgId]);
 
   return { orgKey, status };

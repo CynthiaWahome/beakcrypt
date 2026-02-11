@@ -75,6 +75,14 @@ export const create = mutation({
     const authResult = await requireOrgAdmin(ctx, project.orgId);
     if (isFailure(authResult)) return authResult;
 
+    if (args.key.trim().length === 0) {
+      return failure(
+        HttpStatus.BAD_REQUEST,
+        "secret:invalid_key",
+        "Secret key cannot be empty",
+      );
+    }
+
     const existing = await ctx.db
       .query("secrets")
       .withIndex("by_env_and_key", (q) =>

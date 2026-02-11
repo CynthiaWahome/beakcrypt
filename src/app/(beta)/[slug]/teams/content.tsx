@@ -655,10 +655,12 @@ function InviteRow({
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={handleResend}>
-                  <RefreshCw />
-                  Resend Invite
-                </DropdownMenuItem>
+                {isPending && !isExpired && (
+                  <DropdownMenuItem onClick={handleResend}>
+                    <RefreshCw />
+                    Resend Invite
+                  </DropdownMenuItem>
+                )}
                 {isPending && !isExpired && invite.role !== "admin" && (
                   <DropdownMenuItem onClick={() => handleRoleChange("admin")}>
                     <ShieldCheck />
@@ -789,57 +791,60 @@ function PendingKeyRow({
   };
 
   return (
-    <div className="flex items-center justify-between rounded-lg border border-amber-500/20 bg-amber-500/5 p-4">
-      <div className="flex items-center gap-3">
-        <Avatar className="size-9">
-          {displayImage && <AvatarImage src={displayImage} alt={displayName} />}
-          <AvatarFallback className="text-xs">
-            {getInitials(displayName)}
-          </AvatarFallback>
-        </Avatar>
-        <div className="min-w-0">
-          <p className="text-sm font-medium truncate">{displayName}</p>
-          {displayEmail && (
-            <p className="text-xs text-muted-foreground truncate">
-              {displayEmail}
-            </p>
+    <>
+      <div className="flex items-center justify-between rounded-lg border border-amber-500/20 bg-amber-500/5 p-4">
+        <div className="flex items-center gap-3">
+          <Avatar className="size-9">
+            {displayImage && (
+              <AvatarImage src={displayImage} alt={displayName} />
+            )}
+            <AvatarFallback className="text-xs">
+              {getInitials(displayName)}
+            </AvatarFallback>
+          </Avatar>
+          <div className="min-w-0">
+            <p className="text-sm font-medium truncate">{displayName}</p>
+            {displayEmail && (
+              <p className="text-xs text-muted-foreground truncate">
+                {displayEmail}
+              </p>
+            )}
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <Badge variant="secondary" className="gap-1 text-xs">
+            <KeyRound className="size-3" />
+            Pending
+          </Badge>
+          {approved ? (
+            <Badge className="gap-1 text-xs bg-emerald-500/10 text-emerald-400 border-emerald-500/20">
+              <Check className="size-3" />
+              Approved
+            </Badge>
+          ) : (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleApprove}
+              disabled={isPending}
+            >
+              {isPending ? (
+                <>
+                  <Loader2 className="animate-spin" />
+                  Approving...
+                </>
+              ) : (
+                <>
+                  <Check />
+                  Approve Key
+                </>
+              )}
+            </Button>
           )}
         </div>
       </div>
-
-      <div className="flex items-center gap-2">
-        <Badge variant="secondary" className="gap-1 text-xs">
-          <KeyRound className="size-3" />
-          Pending
-        </Badge>
-        {approved ? (
-          <Badge className="gap-1 text-xs bg-emerald-500/10 text-emerald-400 border-emerald-500/20">
-            <Check className="size-3" />
-            Approved
-          </Badge>
-        ) : (
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={handleApprove}
-            disabled={isPending}
-          >
-            {isPending ? (
-              <>
-                <Loader2 className="animate-spin" />
-                Approving...
-              </>
-            ) : (
-              <>
-                <Check />
-                Approve Key
-              </>
-            )}
-          </Button>
-        )}
-      </div>
-
       {error && <p className="mt-2 text-sm text-red-400">{error}</p>}
-    </div>
+    </>
   );
 }

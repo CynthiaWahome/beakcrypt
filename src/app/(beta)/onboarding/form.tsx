@@ -150,6 +150,7 @@ export default function OnboardingForm() {
         }
       } catch {
         setKeySetupError("Failed to set up encryption.");
+        keySetupStarted.current = false;
       } finally {
         setKeySetupLoading(false);
       }
