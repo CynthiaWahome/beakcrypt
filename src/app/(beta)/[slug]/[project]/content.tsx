@@ -63,6 +63,7 @@ import {
 import { Skeleton } from "~/components/ui/skeleton";
 import LinkRepoDialog from "./link-repo-dialog";
 import { useOrgKey } from "~/hooks/use-org-key";
+import { useDeviceKeySetup } from "~/hooks/use-device-key-setup";
 import { encryptSecret, decryptSecret } from "~/lib/crypto";
 
 interface ParsedEntry {
@@ -380,6 +381,7 @@ function EnvironmentSecrets({
   onEnvDeleted: () => void;
 }) {
   const { orgKey, status: keyStatus } = useOrgKey(orgId);
+  const deviceSetup = useDeviceKeySetup(orgId);
   const secretsResult = useQuery(api.secrets.list, { environmentId });
   const createMutation = useMutation(api.secrets.create);
   const bulkCreateMutation = useMutation(api.secrets.bulkCreate);
@@ -696,6 +698,56 @@ function EnvironmentSecrets({
   }
 
   if (keyStatus === "no_private_key") {
+    if (deviceSetup.status === "registering") {
+      return (
+        <Empty className="min-h-[40vh]">
+          <EmptyHeader>
+            <EmptyMedia variant="icon">
+              <ShieldAlert />
+            </EmptyMedia>
+            <EmptyTitle>Setting up this device…</EmptyTitle>
+            <EmptyDescription>
+              Generating encryption keys for this device.
+            </EmptyDescription>
+          </EmptyHeader>
+        </Empty>
+      );
+    }
+
+    if (deviceSetup.status === "pending_approval") {
+      return (
+        <Empty className="min-h-[40vh]">
+          <EmptyHeader>
+            <EmptyMedia variant="icon">
+              <ShieldAlert />
+            </EmptyMedia>
+            <EmptyTitle>Pending Approval</EmptyTitle>
+            <EmptyDescription>
+              This device has been registered and is waiting for approval.
+              Approve it from an authorized device in your Sessions page, or ask
+              an admin.
+            </EmptyDescription>
+          </EmptyHeader>
+        </Empty>
+      );
+    }
+
+    if (deviceSetup.status === "error") {
+      return (
+        <Empty className="min-h-[40vh]">
+          <EmptyHeader>
+            <EmptyMedia variant="icon">
+              <ShieldAlert />
+            </EmptyMedia>
+            <EmptyTitle>Device Setup Failed</EmptyTitle>
+            <EmptyDescription>
+              {deviceSetup.error || "Failed to register this device."}
+            </EmptyDescription>
+          </EmptyHeader>
+        </Empty>
+      );
+    }
+
     return (
       <Empty className="min-h-[40vh]">
         <EmptyHeader>
@@ -705,8 +757,7 @@ function EnvironmentSecrets({
           <EmptyTitle>Private Key Not Found</EmptyTitle>
           <EmptyDescription>
             Your encryption private key was not found in this browser. This can
-            happen if you cleared your browser data. Contact an admin to
-            re-approve your access.
+            happen if you cleared your browser data or switched devices.
           </EmptyDescription>
         </EmptyHeader>
       </Empty>

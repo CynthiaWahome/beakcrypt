@@ -1,15 +1,15 @@
 "use client";
 
-import Link from "next/link";
-import { useParams, usePathname } from "next/navigation";
-import { LayoutDashboard, Users, Settings } from "lucide-react";
 import {
   SidebarGroup,
-  SidebarGroupContent,
   SidebarMenu,
   SidebarMenuItem,
   SidebarMenuButton,
+  SidebarGroupContent,
 } from "~/components/ui/sidebar";
+import Link from "next/link";
+import { useParams, usePathname } from "next/navigation";
+import { LayoutDashboard, Users, Monitor, Settings } from "lucide-react";
 
 const navItems = [
   {
@@ -22,6 +22,12 @@ const navItems = [
     label: "Teams",
     icon: Users,
     href: (slug: string) => `/${slug}/teams`,
+    exact: false,
+  },
+  {
+    label: "Sessions",
+    icon: Monitor,
+    href: (slug: string) => `/${slug}/sessions`,
     exact: false,
   },
   {

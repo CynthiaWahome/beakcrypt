@@ -9,6 +9,12 @@ export const registerKey = mutation({
     orgId: v.id("organizations"),
     publicKey: v.string(),
     wrappedOrgKey: v.optional(v.string()),
+    deviceInfo: v.optional(
+      v.object({
+        browser: v.optional(v.string()),
+        os: v.optional(v.string()),
+      }),
+    ),
   },
   handler: async (ctx, args): Promise<Result<Doc<"memberKeys">>> => {
     const userResult = await getAuthUser(ctx);
@@ -19,21 +25,6 @@ export const registerKey = mutation({
     const membershipResult = await requireOrgMember(ctx, args.orgId);
     if (isFailure(membershipResult)) return membershipResult;
 
-    const existing = await ctx.db
-      .query("memberKeys")
-      .withIndex("by_org_and_user", (q) =>
-        q.eq("orgId", args.orgId).eq("userId", user._id),
-      )
-      .first();
-
-    if (existing && existing.status === "active") {
-      return failure(
-        HttpStatus.CONFLICT,
-        "key:already_registered",
-        "You already have an active key for this organization",
-      );
-    }
-
     const org = await ctx.db.get(args.orgId);
     if (!org) {
       return failure(
@@ -41,10 +32,6 @@ export const registerKey = mutation({
         "org:not_found",
         "Organization not found",
       );
-    }
-
-    if (existing) {
-      await ctx.db.delete(existing._id);
     }
 
     const isOwner = org.ownerId === user._id;
@@ -55,6 +42,7 @@ export const registerKey = mutation({
       userId: user._id,
       publicKey: args.publicKey,
       wrappedOrgKey: isOwner ? args.wrappedOrgKey : undefined,
+      deviceInfo: args.deviceInfo,
       status,
       createdAt: Date.now(),
       updatedAt: Date.now(),
@@ -299,5 +287,132 @@ export const rotateOrgKey = mutation({
       keysUpdated,
       secretsUpdated,
     });
+  },
+});
+
+export const listMySessions = query({
+  args: {
+    orgId: v.id("organizations"),
+  },
+  handler: async (ctx, args): Promise<Result<Doc<"memberKeys">[]>> => {
+    const userResult = await getAuthUser(ctx);
+    if (isFailure(userResult)) return userResult;
+
+    const membershipResult = await requireOrgMember(ctx, args.orgId);
+    if (isFailure(membershipResult)) return membershipResult;
+
+    const keys = await ctx.db
+      .query("memberKeys")
+      .withIndex("by_org_and_user", (q) =>
+        q.eq("orgId", args.orgId).eq("userId", userResult.data._id),
+      )
+      .collect();
+
+    return success(keys);
+  },
+});
+
+export const approveMySession = mutation({
+  args: {
+    keyId: v.id("memberKeys"),
+    wrappedOrgKey: v.string(),
+  },
+  handler: async (ctx, args): Promise<Result<Doc<"memberKeys">>> => {
+    const userResult = await getAuthUser(ctx);
+    if (isFailure(userResult)) return userResult;
+
+    const memberKey = await ctx.db.get(args.keyId);
+    if (!memberKey) {
+      return failure(
+        HttpStatus.NOT_FOUND,
+        "key:not_found",
+        "Key record not found",
+      );
+    }
+
+    if (memberKey.userId !== userResult.data._id) {
+      return failure(
+        HttpStatus.FORBIDDEN,
+        "key:not_owner",
+        "You can only approve your own device sessions",
+      );
+    }
+
+    if (memberKey.status !== "pending") {
+      return failure(
+        HttpStatus.BAD_REQUEST,
+        "key:not_pending",
+        "Only pending keys can be approved",
+      );
+    }
+
+    await ctx.db.patch(args.keyId, {
+      wrappedOrgKey: args.wrappedOrgKey,
+      status: "active",
+      updatedAt: Date.now(),
+    });
+
+    const updated = await ctx.db.get(args.keyId);
+    if (!updated) {
+      return failure(
+        HttpStatus.INTERNAL_SERVER_ERROR,
+        "key:approve_failed",
+        "Failed to approve session",
+      );
+    }
+
+    return success(updated);
+  },
+});
+
+export const revokeMySession = mutation({
+  args: {
+    keyId: v.id("memberKeys"),
+  },
+  handler: async (ctx, args): Promise<Result<Doc<"memberKeys">>> => {
+    const userResult = await getAuthUser(ctx);
+    if (isFailure(userResult)) return userResult;
+
+    const memberKey = await ctx.db.get(args.keyId);
+    if (!memberKey) {
+      return failure(
+        HttpStatus.NOT_FOUND,
+        "key:not_found",
+        "Key record not found",
+      );
+    }
+
+    if (memberKey.userId !== userResult.data._id) {
+      return failure(
+        HttpStatus.FORBIDDEN,
+        "key:not_owner",
+        "You can only revoke your own device sessions",
+      );
+    }
+
+    if (memberKey.status === "revoked") {
+      return failure(
+        HttpStatus.BAD_REQUEST,
+        "key:already_revoked",
+        "Session is already revoked",
+      );
+    }
+
+    await ctx.db.patch(args.keyId, {
+      status: "revoked",
+      wrappedOrgKey: undefined,
+      updatedAt: Date.now(),
+    });
+
+    const updated = await ctx.db.get(args.keyId);
+    if (!updated) {
+      return failure(
+        HttpStatus.INTERNAL_SERVER_ERROR,
+        "key:revoke_failed",
+        "Failed to revoke session",
+      );
+    }
+
+    return success(updated);
   },
 });

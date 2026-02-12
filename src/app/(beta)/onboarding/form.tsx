@@ -46,6 +46,7 @@ import {
   wrapOrgKey,
   storePrivateKey,
 } from "~/lib/crypto";
+import { getDeviceInfo } from "~/lib/device-info";
 
 const initialOrgState: Response<
   Doc<"organizations">,
@@ -140,6 +141,7 @@ export default function OnboardingForm() {
           orgId,
           publicKey: JSON.stringify(keyPair.publicKey),
           wrappedOrgKey: wrappedKey,
+          deviceInfo: getDeviceInfo(),
         });
 
         if (isSuccess(result)) {

@@ -101,6 +101,12 @@ export default defineSchema({
     userId: v.string(),
     publicKey: v.string(),
     wrappedOrgKey: v.optional(v.string()),
+    deviceInfo: v.optional(
+      v.object({
+        browser: v.optional(v.string()),
+        os: v.optional(v.string()),
+      }),
+    ),
     status: v.union(
       v.literal("pending"),
       v.literal("active"),
