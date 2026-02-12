@@ -170,6 +170,21 @@ export function hasPrivateKey(orgId: string): boolean {
   return localStorage.getItem(`${PRIVATE_KEY_PREFIX}${orgId}`) !== null;
 }
 
+export function isCurrentDeviceSession(
+  orgId: string,
+  sessionPublicKey: string,
+): boolean {
+  const privateKey = getPrivateKey(orgId);
+  if (!privateKey || !privateKey.n) return false;
+
+  try {
+    const publicKeyJwk = JSON.parse(sessionPublicKey) as JsonWebKey;
+    return publicKeyJwk.n === privateKey.n;
+  } catch {
+    return false;
+  }
+}
+
 function bufferToBase64(buffer: ArrayBuffer): string {
   const bytes = new Uint8Array(buffer);
   let binary = "";

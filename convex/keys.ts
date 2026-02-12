@@ -330,6 +330,9 @@ export const approveMySession = mutation({
       );
     }
 
+    const membershipResult = await requireOrgMember(ctx, memberKey.orgId);
+    if (isFailure(membershipResult)) return membershipResult;
+
     if (memberKey.userId !== userResult.data._id) {
       return failure(
         HttpStatus.FORBIDDEN,
@@ -381,6 +384,9 @@ export const revokeMySession = mutation({
         "Key record not found",
       );
     }
+
+    const membershipResult = await requireOrgMember(ctx, memberKey.orgId);
+    if (isFailure(membershipResult)) return membershipResult;
 
     if (memberKey.userId !== userResult.data._id) {
       return failure(

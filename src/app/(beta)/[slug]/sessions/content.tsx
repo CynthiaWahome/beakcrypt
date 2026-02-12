@@ -33,7 +33,7 @@ import {
   ShieldAlert,
   Clock,
 } from "lucide-react";
-import { hasPrivateKey } from "~/lib/crypto";
+import { isCurrentDeviceSession } from "~/lib/crypto";
 import { useOrgKey } from "~/hooks/use-org-key";
 import { wrapOrgKey } from "~/lib/crypto";
 
@@ -127,7 +127,7 @@ function SessionRow({
   const [confirmRevoke, setConfirmRevoke] = useState(false);
   const [error, setError] = useState("");
 
-  const isThisDevice = hasPrivateKey(orgId);
+  const isThisDevice = isCurrentDeviceSession(orgId, session.publicKey);
   const isActive = session.status === "active";
   const isPendingApproval = session.status === "pending";
   const isRevoked = session.status === "revoked";
@@ -275,7 +275,10 @@ function SessionRow({
             <Button
               size="sm"
               variant="ghost"
-              onClick={() => setConfirmRevoke(true)}
+              onClick={() => {
+                setError("");
+                setConfirmRevoke(true);
+              }}
               disabled={isPending}
               className="text-destructive hover:text-destructive"
             >

@@ -30,6 +30,8 @@ export function useDeviceKeySetup(orgId: Id<"organizations">) {
   }, [orgId]);
 
   useEffect(() => {
+    let cancelled = false;
+
     if (attemptedRef.current) return;
     if (hasPrivateKey(orgId)) {
       setStatus("done");
@@ -60,6 +62,8 @@ export function useDeviceKeySetup(orgId: Id<"organizations">) {
           deviceInfo,
         });
 
+        if (cancelled) return;
+
         if (isSuccess(result)) {
           storePrivateKey(orgId, keyPair.privateKey);
           if (result.data.status === "active") {
@@ -72,11 +76,16 @@ export function useDeviceKeySetup(orgId: Id<"organizations">) {
           setStatus("error");
         }
       } catch {
+        if (cancelled) return;
         setError("Failed to register device.");
         setStatus("error");
         attemptedRef.current = false;
       }
     })();
+
+    return () => {
+      cancelled = true;
+    };
   }, [orgId, sessionsResult, registerKeyMutation, retryCount]);
 
   const retry = useCallback(() => {
