@@ -1,11 +1,19 @@
 import { Suspense } from "react";
 import { Skeleton } from "~/components/ui/skeleton";
 import { Separator } from "~/components/ui/separator";
+import { SidebarTrigger } from "~/components/ui/sidebar";
 import SettingsHandler from "./handler";
 
 function SettingsSkeleton() {
   return (
     <div className="flex flex-1 flex-col">
+      <div className="flex items-center gap-3 px-6 py-4">
+        <SidebarTrigger className="-ml-1" />
+        <div className="space-y-1">
+          <Skeleton className="h-5 w-24" />
+          <Skeleton className="h-4 w-56" />
+        </div>
+      </div>
       <Separator />
       <div className="flex flex-col gap-6 p-6 max-w-2xl">
         <div className="space-y-3 rounded-lg border p-4">

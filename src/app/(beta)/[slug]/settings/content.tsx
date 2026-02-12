@@ -4,7 +4,7 @@ import { useMutation, useQuery } from "convex/react";
 import { api } from "conv/_generated/api";
 import { isFailure, isSuccess } from "conv/types";
 import type { Doc } from "conv/_generated/dataModel";
-import { useState, useTransition } from "react";
+import { useState, useTransition, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
   Check,
@@ -12,6 +12,7 @@ import {
   AlertTriangle,
   KeyRound,
   RefreshCw,
+  X,
 } from "lucide-react";
 import { SidebarTrigger } from "~/components/ui/sidebar";
 import { Button } from "~/components/ui/button";
@@ -34,6 +35,14 @@ import {
   storePrivateKey,
   getPrivateKey,
 } from "~/lib/crypto";
+import {
+  InputGroup,
+  InputGroupText,
+  InputGroupAddon,
+  InputGroupInput,
+} from "~/components/ui/input-group";
+import { validateSlug } from "shared/reserved-slugs";
+import { Spinner } from "~/components/ui/spinner";
 
 interface Props {
   organization: Doc<"organizations">;
@@ -53,6 +62,38 @@ export default function SettingsContent({ organization }: Props) {
   const [slugError, setSlugError] = useState("");
   const [slugPending, startSlugTransition] = useTransition();
   const [slugConfirmOpen, setSlugConfirmOpen] = useState(false);
+  const [debouncedSlug, setDebouncedSlug] = useState(slug);
+
+  useEffect(() => {
+    const handler = setTimeout(() => setDebouncedSlug(slug), 500);
+    return () => clearTimeout(handler);
+  }, [slug]);
+
+  const shouldValidateSlug =
+    debouncedSlug.length > 0 && debouncedSlug !== organization.slug;
+  const slugValidation = shouldValidateSlug
+    ? validateSlug(debouncedSlug)
+    : { valid: false, error: null };
+  const isSlugInvalid = shouldValidateSlug && !slugValidation.valid;
+  const slugValidationError = isSlugInvalid ? slugValidation.error : null;
+
+  const isSlugTakenQuery = useQuery(
+    api.organizations.checkSlug,
+    slugValidation.valid && shouldValidateSlug
+      ? { slug: debouncedSlug }
+      : "skip",
+  );
+
+  const isSlugCheckLoading =
+    slugValidation.valid &&
+    shouldValidateSlug &&
+    isSlugTakenQuery === undefined;
+  const isSlugTakenResult =
+    isSlugTakenQuery && isSuccess(isSlugTakenQuery)
+      ? isSlugTakenQuery.data
+      : undefined;
+  const isSlugTaken =
+    shouldValidateSlug && (isSlugInvalid || isSlugTakenResult === true);
 
   const { orgKey, status: keyStatus } = useOrgKey(organization._id);
   const activeKeysResult = useQuery(api.keys.listActiveKeys, {
@@ -119,7 +160,7 @@ export default function SettingsContent({ organization }: Props) {
         }
         setSlugSaved(true);
         setSlugConfirmOpen(false);
-        router.replace(`/${result.data.slug}/settings`);
+        router.push(`/${result.data.slug}/settings`);
       } catch {
         setSlugError("Something went wrong.");
       }
@@ -257,23 +298,47 @@ export default function SettingsContent({ organization }: Props) {
               </p>
             </div>
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
-              <div className="flex items-center rounded-md border bg-muted px-3 text-sm text-muted-foreground h-9">
-                /
-              </div>
-              <Input
-                value={slug}
-                onChange={(e) =>
-                  setSlug(
-                    e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""),
-                  )
-                }
-                placeholder="my-org"
-                className="max-w-sm font-mono"
-              />
+              <InputGroup>
+                <InputGroupAddon>
+                  <InputGroupText className="text-muted-foreground">
+                    beakcrypt.com/
+                  </InputGroupText>
+                </InputGroupAddon>
+                <InputGroupInput
+                  value={slug}
+                  onChange={(e) =>
+                    setSlug(
+                      e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""),
+                    )
+                  }
+                  className="pl-px!"
+                />
+                <InputGroupAddon align="inline-end">
+                  {slugChanged && slug.length > 0 && (
+                    <>
+                      {isSlugCheckLoading ? (
+                        <Spinner />
+                      ) : isSlugInvalid || isSlugTaken === true ? (
+                        <X className="w-4 h-4 text-red-500" />
+                      ) : slugValidation.valid &&
+                        isSlugTakenResult === false ? (
+                        <Check className="w-4 h-4 text-emerald-500" />
+                      ) : null}
+                    </>
+                  )}
+                </InputGroupAddon>
+              </InputGroup>
               <Button
                 size="sm"
                 onClick={() => setSlugConfirmOpen(true)}
-                disabled={slugPending || !slugChanged || !slug.trim()}
+                disabled={
+                  slugPending ||
+                  !slugChanged ||
+                  !slug.trim() ||
+                  isSlugCheckLoading ||
+                  isSlugTaken === true ||
+                  isSlugInvalid
+                }
               >
                 {slugPending ? (
                   <Loader2 className="animate-spin" />
@@ -287,9 +352,14 @@ export default function SettingsContent({ organization }: Props) {
                 )}
               </Button>
             </div>
-            {slugError && (
+            {(slugError ||
+              (slugChanged && isSlugTaken === true) ||
+              (slugChanged && isSlugInvalid)) && (
               <p className="text-sm text-red-400 animate-in fade-in slide-in-from-top-1">
-                {slugError}
+                {slugError ||
+                  (isSlugTakenResult === true
+                    ? "This URL is already taken"
+                    : slugValidationError)}
               </p>
             )}
           </section>

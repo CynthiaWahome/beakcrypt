@@ -7,6 +7,7 @@ import {
   UserPlus,
   Building2,
   ArrowRight,
+  ShieldCheck,
 } from "lucide-react";
 import {
   Card,
@@ -247,6 +248,15 @@ export default function OnboardingForm() {
                 <Building2 className="w-5 h-5 text-[#5eead4]" />
                 Create Organization
               </>
+            ) : !keySetupDone ? (
+              <>
+                <ShieldCheck
+                  className={`w-5 h-5 ${keySetupError ? "text-red-400" : "text-[#5eead4]"}`}
+                />
+                {keySetupError
+                  ? "Security Setup Failed"
+                  : "Setting Up Security"}
+              </>
             ) : (
               <>
                 <UserPlus className="w-5 h-5 text-[#5eead4]" />
@@ -257,7 +267,11 @@ export default function OnboardingForm() {
           <CardDescription>
             {!isOrgCreated
               ? "Start by setting up your organization's identity."
-              : "Add your first org member to start collaborating."}
+              : !keySetupDone
+                ? keySetupError
+                  ? "Something went wrong. Please try again."
+                  : "Generating encryption keys for your organization..."
+                : "Add your first org member to start collaborating."}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -358,6 +372,34 @@ export default function OnboardingForm() {
                 )}
               </Button>
             </form>
+          ) : !keySetupDone && !keySetupError ? (
+            <div className="flex flex-col items-center justify-center gap-4 py-8 animate-in fade-in duration-300">
+              <Loader2 className="h-8 w-8 animate-spin text-[#5eead4]" />
+              <p className="text-sm text-zinc-400">Setting up security...</p>
+            </div>
+          ) : keySetupError ? (
+            <div className="flex flex-col items-center justify-center gap-4 py-8 animate-in fade-in duration-300">
+              <p className="text-sm text-red-400 text-center">
+                {keySetupError}
+              </p>
+              <Button
+                type="button"
+                variant="ghost"
+                className="text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                onClick={() => {
+                  if (orgState.data?._id) {
+                    setupKeys(orgState.data._id);
+                  }
+                }}
+                disabled={keySetupLoading}
+              >
+                {keySetupLoading ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  "Retry"
+                )}
+              </Button>
+            </div>
           ) : (
             <form
               action={inviteAction}
@@ -437,50 +479,24 @@ export default function OnboardingForm() {
                 </p>
               )}
 
-              {keySetupError && (
-                <p className="text-sm text-red-400 animate-in fade-in slide-in-from-top-1">
-                  {keySetupError}
-                </p>
-              )}
-
               <div className="flex gap-2 mt-2">
                 <Button
                   type="button"
                   variant="ghost"
-                  className={`flex-1 ${keySetupError ? "text-red-400 hover:text-red-300 hover:bg-red-500/10" : "text-zinc-400 hover:text-white"}`}
-                  onClick={() => {
-                    if (keySetupError && orgState.data?._id) {
-                      setupKeys(orgState.data._id);
-                    } else {
-                      setIsSkipped(true);
-                    }
-                  }}
-                  disabled={
-                    (!keySetupDone && !keySetupError) || keySetupLoading
-                  }
+                  className="flex-1 text-zinc-400 hover:text-white"
+                  onClick={() => setIsSkipped(true)}
                 >
-                  {keySetupLoading ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  ) : keySetupError ? (
-                    "Retry Setup"
-                  ) : (
-                    "Skip"
-                  )}
+                  Skip
                 </Button>
                 <Button
                   type="submit"
                   className="flex-2"
-                  disabled={invitePending || !keySetupDone}
+                  disabled={invitePending}
                 >
                   {invitePending ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                       Sending...
-                    </>
-                  ) : !keySetupDone && !keySetupError ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Setting up security...
                     </>
                   ) : (
                     "Complete Setup"
