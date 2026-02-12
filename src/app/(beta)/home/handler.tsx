@@ -1,6 +1,7 @@
 import Nav from "~/components/home/nav";
 import Hero from "~/components/home/hero";
 import { api } from "conv/_generated/api";
+import { isSuccess } from "conv/types";
 import { redirect } from "next/navigation";
 import Footer from "~/components/home/footer";
 import Features from "~/components/home/features";
@@ -13,10 +14,10 @@ export default async function HomeHandler() {
   const isAuth = await isAuthenticated();
 
   if (isAuth) {
-    const orgs = await fetchAuthQuery(api.organizations.list, {});
+    const orgsResult = await fetchAuthQuery(api.organizations.list, {});
 
-    if (orgs.length > 0) {
-      redirect(`/${orgs[0].slug}`);
+    if (isSuccess(orgsResult) && orgsResult.data.length > 0) {
+      redirect(`/${orgsResult.data[0].slug}`);
     } else {
       redirect("/onboarding");
     }

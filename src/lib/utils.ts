@@ -25,11 +25,6 @@ export const collectErrorMessages = (node: ErrorNode): string[] => {
   return messages;
 };
 
-/**
- * Validates and sanitizes a callback URL to prevent open redirect attacks.
- * Only allows same-origin relative paths (e.g., "/dashboard", "/auth/invite?token=abc").
- * Rejects absolute URLs, protocol-relative URLs, and other potentially malicious inputs.
- */
 export function getSafeCallbackURL(url: string | undefined): string {
   const fallback = "/";
 
@@ -48,4 +43,20 @@ export function getSafeCallbackURL(url: string | undefined): string {
   } catch {
     return fallback;
   }
+}
+
+export function getInitials(name: string): string {
+  const trimmed = name.trim();
+  const parts = trimmed.split(/\s+/).filter(Boolean);
+  if (parts.length === 0) {
+    return "?!";
+  }
+
+  return parts.length > 1
+    ? parts
+        .slice(0, 2)
+        .map((p) => p[0])
+        .join("")
+        .toUpperCase()
+    : trimmed.slice(0, 2).toUpperCase();
 }

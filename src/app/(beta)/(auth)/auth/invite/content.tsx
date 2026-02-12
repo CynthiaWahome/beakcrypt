@@ -1,6 +1,7 @@
 "use client";
 
 import { api } from "conv/_generated/api";
+import { isSuccess } from "conv/types";
 import { Button } from "~/components/ui/button";
 import { useMutation } from "convex/react";
 import { useRouter } from "next/navigation";
@@ -26,6 +27,8 @@ import {
 } from "lucide-react";
 import { Preloaded, usePreloadedQuery } from "convex/react";
 import AppLoader from "~/components/loader";
+import { getInitials } from "~/lib/utils";
+import { generateKeyPair, storePrivateKey } from "~/lib/crypto";
 
 interface InviteContentProps {
   preloadedInvite: Preloaded<typeof api.invites.getInvite>;
@@ -39,9 +42,14 @@ export default function InviteContent({
   const router = useRouter();
   const { data: session, isPending: isSessionPending } = useSession();
 
-  const invite = usePreloadedQuery(preloadedInvite);
+  const inviteResult = usePreloadedQuery(preloadedInvite);
+  const invite = isSuccess(inviteResult) ? inviteResult.data.invite : null;
+  const organization = isSuccess(inviteResult)
+    ? inviteResult.data.organization
+    : null;
   const acceptMutation = useMutation(api.invites.accept);
   const declineMutation = useMutation(api.invites.decline);
+  const registerKeyMutation = useMutation(api.keys.registerKey);
 
   const [isPending, startTransition] = useTransition();
   const [actionType, setActionType] = useState<"accept" | "decline" | null>(
@@ -99,7 +107,7 @@ export default function InviteContent({
     );
   }
 
-  if (!invite) {
+  if (!invite || !organization) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center bg-black text-center p-4">
         <div className="rounded-full bg-zinc-900 p-3 mb-4">
@@ -122,8 +130,25 @@ export default function InviteContent({
     setActionType("accept");
     startTransition(async () => {
       try {
-        const slug = await acceptMutation({ token });
-        router.push(`/${slug}`);
+        const result = await acceptMutation({ token });
+        if (isSuccess(result)) {
+          try {
+            const keyPair = await generateKeyPair();
+            await registerKeyMutation({
+              orgId: result.data._id,
+              publicKey: JSON.stringify(keyPair.publicKey),
+            });
+            storePrivateKey(result.data._id, keyPair.privateKey);
+          } catch {
+            console.error(
+              "Key registration failed, user will need admin approval later",
+            );
+          }
+          router.push(`/${result.data.slug}`);
+        } else {
+          console.error("Failed to accept invite:", result.error);
+          setActionType(null);
+        }
       } catch (error) {
         console.error("Failed to accept invite:", error);
         setActionType(null);
@@ -135,8 +160,13 @@ export default function InviteContent({
     setActionType("decline");
     startTransition(async () => {
       try {
-        await declineMutation({ token });
-        router.push("/");
+        const result = await declineMutation({ token });
+        if (isSuccess(result)) {
+          router.push("/");
+        } else {
+          console.error("Failed to decline invite:", result.error);
+          setActionType(null);
+        }
       } catch (error) {
         console.error("Failed to decline invite:", error);
         setActionType(null);
@@ -157,28 +187,14 @@ export default function InviteContent({
       <Card className="w-full max-w-md border-zinc-800 bg-zinc-950/50 backdrop-blur-xl">
         <CardHeader className="text-center flex flex-col items-center">
           <Avatar>
-            <AvatarImage src={invite.orgAvatar} />
-            <AvatarFallback>
-              {(() => {
-                const parts = invite.orgName
-                  .trim()
-                  .split(/\s+/)
-                  .filter(Boolean);
-                return parts.length > 1
-                  ? parts
-                      .slice(0, 2)
-                      .map((p) => p[0])
-                      .join("")
-                      .toUpperCase()
-                  : invite.orgName.slice(0, 2).toUpperCase();
-              })()}
-            </AvatarFallback>
+            <AvatarImage src={organization.avatar} />
+            <AvatarFallback>{getInitials(organization.name)}</AvatarFallback>
           </Avatar>
           <CardTitle className="text-2xl">Join Organization</CardTitle>
           <CardDescription>
             You have been invited to join the{" "}
             <span className="text-white font-medium capitalize">
-              {invite.orgName}
+              {organization.name}
             </span>{" "}
             organization.
           </CardDescription>
