@@ -18,6 +18,7 @@ export type DeviceKeySetupStatus =
 export function useDeviceKeySetup(orgId: Id<"organizations">) {
   const [status, setStatus] = useState<DeviceKeySetupStatus>("idle");
   const [error, setError] = useState("");
+  const [retryCount, setRetryCount] = useState(0);
   const registerKeyMutation = useMutation(api.keys.registerKey);
   const sessionsResult = useQuery(api.keys.listMySessions, { orgId });
   const attemptedRef = useRef(false);
@@ -76,12 +77,13 @@ export function useDeviceKeySetup(orgId: Id<"organizations">) {
         attemptedRef.current = false;
       }
     })();
-  }, [orgId, sessionsResult, registerKeyMutation]);
+  }, [orgId, sessionsResult, registerKeyMutation, retryCount]);
 
   const retry = useCallback(() => {
     attemptedRef.current = false;
     setStatus("idle");
     setError("");
+    setRetryCount((c) => c + 1);
   }, []);
 
   return { status, error, retry };
