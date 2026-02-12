@@ -4,18 +4,22 @@ import { Separator } from "~/components/ui/separator";
 import { SidebarTrigger } from "~/components/ui/sidebar";
 import ProjectHandler from "./handler";
 
-function ProjectSkeleton() {
+function ProjectSkeleton({ projectName }: { projectName: string }) {
   return (
     <div className="flex flex-1 flex-col">
       <div className="flex flex-col gap-3 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3">
           <SidebarTrigger className="-ml-1" />
-          <div className="space-y-2">
-            <Skeleton className="h-5 w-20" />
-            <Skeleton className="h-4 w-56" />
+          <div>
+            <h1 className="text-lg font-semibold tracking-tight">
+              {decodeURIComponent(projectName)}
+            </h1>
+            <p className="text-sm text-muted-foreground">
+              Manage environment variables for this project.
+            </p>
           </div>
         </div>
-        <Skeleton className="h-8 w-28 rounded-md" />
+        <Skeleton className="h-8 w-32 rounded-md" />
       </div>
       <Separator />
       <div className="flex items-center gap-2 px-6 pt-4">
@@ -47,13 +51,14 @@ function ProjectSkeleton() {
   );
 }
 
-export default function ProjectPage({
+export default async function ProjectPage({
   params,
 }: {
   params: Promise<{ slug: string; project: string }>;
 }) {
+  const { project } = await params;
   return (
-    <Suspense fallback={<ProjectSkeleton />}>
+    <Suspense fallback={<ProjectSkeleton projectName={project} />}>
       <ProjectHandler paramsPromise={params} />
     </Suspense>
   );

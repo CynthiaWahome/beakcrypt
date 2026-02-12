@@ -9,9 +9,11 @@ function SessionsSkeleton() {
     <div className="flex flex-1 flex-col">
       <div className="flex items-center gap-3 px-6 py-4">
         <SidebarTrigger className="-ml-1" />
-        <div className="space-y-2">
-          <Skeleton className="h-5 w-24" />
-          <Skeleton className="h-4 w-72" />
+        <div>
+          <h1 className="text-lg font-semibold tracking-tight">Sessions</h1>
+          <p className="text-sm text-muted-foreground">
+            Manage your device sessions for this organization.
+          </p>
         </div>
       </div>
       <Separator />

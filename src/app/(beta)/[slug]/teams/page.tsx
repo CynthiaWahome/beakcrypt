@@ -2,6 +2,8 @@ import { Suspense } from "react";
 import { Skeleton } from "~/components/ui/skeleton";
 import { Separator } from "~/components/ui/separator";
 import { SidebarTrigger } from "~/components/ui/sidebar";
+import { Button } from "~/components/ui/button";
+import { Mail } from "lucide-react";
 import TeamsHandler from "./handler";
 
 function TeamsSkeleton() {
@@ -10,12 +12,17 @@ function TeamsSkeleton() {
       <div className="flex flex-col gap-3 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3">
           <SidebarTrigger className="-ml-1" />
-          <div className="space-y-2">
-            <Skeleton className="h-5 w-20" />
-            <Skeleton className="h-4 w-56" />
+          <div>
+            <h1 className="text-lg font-semibold tracking-tight">Team</h1>
+            <p className="text-sm text-muted-foreground">
+              Manage members and invitations for your organization.
+            </p>
           </div>
         </div>
-        <Skeleton className="h-8 w-28 rounded-md" />
+        <Button size="sm" disabled>
+          <Mail />
+          Invite Member
+        </Button>
       </div>
       <Separator />
       <div className="flex flex-col gap-3 p-6">
