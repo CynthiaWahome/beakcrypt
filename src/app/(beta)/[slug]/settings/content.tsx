@@ -209,7 +209,7 @@ export default function SettingsContent({ organization }: Props) {
                 The display name of your organization.
               </p>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
               <Input
                 value={name}
                 onChange={(e) => setName(e.target.value)}
@@ -256,7 +256,7 @@ export default function SettingsContent({ organization }: Props) {
                 will break existing links.
               </p>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
               <div className="flex items-center rounded-md border bg-muted px-3 text-sm text-muted-foreground h-9">
                 /
               </div>
@@ -305,7 +305,7 @@ export default function SettingsContent({ organization }: Props) {
                 re-wrap the key for all active members.
               </p>
             </div>
-            <div className="rounded-lg border p-4 flex items-center justify-between gap-4">
+            <div className="rounded-lg border p-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
               <div className="flex items-center gap-3 min-w-0">
                 <div className="flex size-9 items-center justify-center rounded-full bg-muted shrink-0">
                   <KeyRound className="size-4 text-muted-foreground" />
@@ -370,7 +370,7 @@ export default function SettingsContent({ organization }: Props) {
                 Irreversible and destructive actions.
               </p>
             </div>
-            <div className="rounded-lg border border-destructive/20 p-4 flex items-center justify-between gap-4">
+            <div className="rounded-lg border border-destructive/20 p-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
               <div className="min-w-0">
                 <p className="text-sm font-medium">Delete Organization</p>
                 <p className="text-xs text-muted-foreground">

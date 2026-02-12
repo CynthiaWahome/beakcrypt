@@ -6,12 +6,12 @@ import ProjectHandler from "./handler";
 function ProjectSkeleton() {
   return (
     <div className="flex flex-1 flex-col">
-      <div className="flex items-center gap-3 px-6 py-4">
-        <Skeleton className="size-8 rounded-md" />
+      <div className="flex flex-col gap-3 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="space-y-2">
-          <Skeleton className="h-5 w-32" />
+          <Skeleton className="h-5 w-20" />
           <Skeleton className="h-4 w-56" />
         </div>
+        <Skeleton className="h-8 w-28 rounded-md" />
       </div>
       <Separator />
       <div className="flex items-center gap-2 px-6 pt-4">

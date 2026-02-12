@@ -195,7 +195,7 @@ function SessionRow({
   return (
     <>
       <div
-        className={`flex items-center justify-between rounded-lg border p-4 ${
+        className={`flex flex-col gap-3 rounded-lg border p-4 sm:flex-row sm:items-center sm:justify-between ${
           isRevoked ? "opacity-50" : ""
         } ${isPendingApproval ? "border-amber-500/20 bg-amber-500/5" : ""}`}
       >
@@ -235,7 +235,7 @@ function SessionRow({
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 self-end sm:self-auto">
           <Badge
             variant={isRevoked ? "destructive" : "secondary"}
             className="gap-1 text-xs capitalize"

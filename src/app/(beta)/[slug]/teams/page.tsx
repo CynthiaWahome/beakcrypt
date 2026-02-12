@@ -6,12 +6,12 @@ import TeamsHandler from "./handler";
 function TeamsSkeleton() {
   return (
     <div className="flex flex-1 flex-col">
-      <div className="flex items-center justify-between px-6 py-4">
+      <div className="flex flex-col gap-3 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="space-y-2">
-          <Skeleton className="h-5 w-24" />
-          <Skeleton className="h-4 w-64" />
+          <Skeleton className="h-5 w-20" />
+          <Skeleton className="h-4 w-56" />
         </div>
-        <Skeleton className="h-8 w-32 rounded-md" />
+        <Skeleton className="h-8 w-28 rounded-md" />
       </div>
       <Separator />
       <div className="flex flex-col gap-3 p-6">

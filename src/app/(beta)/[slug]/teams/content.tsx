@@ -144,7 +144,7 @@ export default function TeamsContent({
 
   return (
     <div className="flex flex-1 flex-col">
-      <div className="flex items-center justify-between px-6 py-4">
+      <div className="flex flex-col gap-3 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3">
           <SidebarTrigger className="-ml-1" />
           <div>
@@ -413,7 +413,7 @@ function MemberRow({
 
   return (
     <>
-      <div className="flex items-center justify-between rounded-lg border p-4">
+      <div className="flex flex-col gap-3 rounded-lg border p-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3">
           <Avatar className="size-9">
             {displayImage && (
@@ -431,7 +431,7 @@ function MemberRow({
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 self-end sm:self-auto">
           <Badge variant="secondary" className="gap-1 text-xs capitalize">
             {roleIcon}
             {member.role}
@@ -607,7 +607,7 @@ function InviteRow({
   return (
     <>
       <div
-        className={`flex items-center justify-between rounded-lg border border-dashed p-4 ${isInactive || isExpired ? "opacity-60" : ""}`}
+        className={`flex flex-col gap-3 rounded-lg border border-dashed p-4 sm:flex-row sm:items-center sm:justify-between ${isInactive || isExpired ? "opacity-60" : ""}`}
       >
         <div className="flex items-center gap-3">
           <div className="flex size-9 items-center justify-center rounded-full bg-muted">
@@ -629,7 +629,7 @@ function InviteRow({
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 self-end sm:self-auto">
           {(isExpired || isInactive) && (
             <Badge variant="destructive" className="gap-1 text-xs capitalize">
               {isExpired ? "Expired" : invite.status}
@@ -792,7 +792,7 @@ function PendingKeyRow({
 
   return (
     <>
-      <div className="flex items-center justify-between rounded-lg border border-amber-500/20 bg-amber-500/5 p-4">
+      <div className="flex flex-col gap-3 rounded-lg border border-amber-500/20 bg-amber-500/5 p-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3">
           <Avatar className="size-9">
             {displayImage && (
@@ -812,7 +812,7 @@ function PendingKeyRow({
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 self-end sm:self-auto">
           <Badge variant="secondary" className="gap-1 text-xs">
             <KeyRound className="size-3" />
             Pending

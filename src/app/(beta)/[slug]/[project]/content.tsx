@@ -119,7 +119,7 @@ export default function ProjectContent({
 
   return (
     <div className="flex flex-1 flex-col">
-      <div className="flex items-center justify-between px-6 py-4">
+      <div className="flex flex-col gap-3 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3">
           <SidebarTrigger className="-ml-1" />
           <div>
@@ -145,7 +145,7 @@ export default function ProjectContent({
           onValueChange={(v) => setActiveEnvId(v as Id<"environments">)}
           className="flex-1"
         >
-          <div className="flex items-center gap-2 px-6 pt-4">
+          <div className="flex items-center gap-2 overflow-x-auto px-6 pt-4">
             <TabsList variant="line">
               {environments.map((env) => (
                 <TabsTrigger key={env._id} value={env._id}>
@@ -887,7 +887,7 @@ function EnvironmentSecrets({
             </div>
           </div>
 
-          <div className="rounded-lg border">
+          <div className="overflow-x-auto rounded-lg border">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -1079,7 +1079,7 @@ function EnvironmentSecrets({
           </div>
 
           {hasPendingRows && (
-            <div className="flex items-center justify-between rounded-lg border border-emerald-500/20 bg-emerald-500/5 px-4 py-3">
+            <div className="flex flex-col gap-3 rounded-lg border border-emerald-500/20 bg-emerald-500/5 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
               <p className="text-sm text-muted-foreground">
                 <span className="font-medium text-foreground">
                   {addRows.length}

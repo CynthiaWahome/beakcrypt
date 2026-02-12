@@ -6,10 +6,6 @@ import SettingsHandler from "./handler";
 function SettingsSkeleton() {
   return (
     <div className="flex flex-1 flex-col">
-      <div className="px-6 py-4 space-y-2">
-        <Skeleton className="h-5 w-24" />
-        <Skeleton className="h-4 w-64" />
-      </div>
       <Separator />
       <div className="flex flex-col gap-6 p-6 max-w-2xl">
         <div className="space-y-3 rounded-lg border p-4">

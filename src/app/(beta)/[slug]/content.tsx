@@ -37,7 +37,7 @@ export default function DashboardContent({
 
   return (
     <div className="flex flex-1 flex-col">
-      <div className="flex items-center justify-between px-6 py-4">
+      <div className="flex flex-col gap-3 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3">
           <SidebarTrigger className="-ml-1" />
           <div>

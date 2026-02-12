@@ -6,7 +6,7 @@ import OrganizationHandler from "./handler";
 function DashboardSkeleton() {
   return (
     <div className="flex flex-1 flex-col">
-      <div className="flex items-center justify-between px-6 py-4">
+      <div className="flex flex-col gap-3 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="space-y-2">
           <Skeleton className="h-5 w-20" />
           <Skeleton className="h-4 w-56" />
