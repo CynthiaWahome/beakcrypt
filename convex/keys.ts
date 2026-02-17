@@ -3,18 +3,14 @@ import type { Doc } from "./_generated/dataModel";
 import { query, mutation } from "./_generated/server";
 import { Result, success, failure, HttpStatus, isFailure } from "./types";
 import { getAuthUser, requireOrgAdmin, requireOrgMember } from "./authHelpers";
+import { authComponent, createAuth } from "./auth";
 
 export const registerKey = mutation({
   args: {
     orgId: v.id("organizations"),
     publicKey: v.string(),
     wrappedOrgKey: v.optional(v.string()),
-    deviceInfo: v.optional(
-      v.object({
-        browser: v.optional(v.string()),
-        os: v.optional(v.string()),
-      }),
-    ),
+    sessionToken: v.string(),
   },
   handler: async (ctx, args): Promise<Result<Doc<"memberKeys">>> => {
     const userResult = await getAuthUser(ctx);
@@ -42,7 +38,7 @@ export const registerKey = mutation({
       userId: user._id,
       publicKey: args.publicKey,
       wrappedOrgKey: isOwner ? args.wrappedOrgKey : undefined,
-      deviceInfo: args.deviceInfo,
+      sessionToken: args.sessionToken,
       status,
       createdAt: Date.now(),
       updatedAt: Date.now(),
@@ -153,6 +149,7 @@ export const revokeKey = mutation({
 export const getMyKey = query({
   args: {
     orgId: v.id("organizations"),
+    publicKey: v.string(),
   },
   handler: async (ctx, args): Promise<Result<Doc<"memberKeys"> | null>> => {
     const userResult = await getAuthUser(ctx);
@@ -161,14 +158,17 @@ export const getMyKey = query({
     const membershipResult = await requireOrgMember(ctx, args.orgId);
     if (isFailure(membershipResult)) return membershipResult;
 
-    const memberKey = await ctx.db
+    const keys = await ctx.db
       .query("memberKeys")
       .withIndex("by_org_and_user", (q) =>
         q.eq("orgId", args.orgId).eq("userId", userResult.data._id),
       )
-      .first();
+      .collect();
 
-    return success(memberKey);
+    const matchingKey =
+      keys.find((k) => k.publicKey === args.publicKey) ?? null;
+
+    return success(matchingKey);
   },
 });
 
@@ -372,7 +372,7 @@ export const revokeMySession = mutation({
   args: {
     keyId: v.id("memberKeys"),
   },
-  handler: async (ctx, args): Promise<Result<Doc<"memberKeys">>> => {
+  handler: async (ctx, args): Promise<Result<null>> => {
     const userResult = await getAuthUser(ctx);
     if (isFailure(userResult)) return userResult;
 
@@ -396,29 +396,20 @@ export const revokeMySession = mutation({
       );
     }
 
-    if (memberKey.status === "revoked") {
-      return failure(
-        HttpStatus.BAD_REQUEST,
-        "key:already_revoked",
-        "Session is already revoked",
-      );
+    await ctx.db.delete(args.keyId);
+
+    if (memberKey.sessionToken) {
+      try {
+        const { auth, headers } = await authComponent.getAuth(createAuth, ctx);
+        await auth.api.revokeSession({
+          body: { token: memberKey.sessionToken },
+          headers,
+        });
+      } catch (e) {
+        console.error("Failed to revoke Better Auth session:", e);
+      }
     }
 
-    await ctx.db.patch(args.keyId, {
-      status: "revoked",
-      wrappedOrgKey: undefined,
-      updatedAt: Date.now(),
-    });
-
-    const updated = await ctx.db.get(args.keyId);
-    if (!updated) {
-      return failure(
-        HttpStatus.INTERNAL_SERVER_ERROR,
-        "key:revoke_failed",
-        "Failed to revoke session",
-      );
-    }
-
-    return success(updated);
+    return success(null);
   },
 });

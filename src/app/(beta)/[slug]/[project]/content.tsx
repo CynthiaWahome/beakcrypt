@@ -697,7 +697,7 @@ function EnvironmentSecrets({
     );
   }
 
-  if (keyStatus === "no_private_key") {
+  if (keyStatus === "no_key_pair") {
     if (deviceSetup.status === "registering") {
       return (
         <Empty className="min-h-[40vh]">

@@ -32,8 +32,6 @@ import {
   wrapOrgKey,
   decryptSecret,
   encryptSecret,
-  storePrivateKey,
-  getPrivateKey,
 } from "~/lib/crypto";
 import {
   InputGroup,

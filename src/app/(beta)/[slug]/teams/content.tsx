@@ -55,7 +55,7 @@ import {
 import { SidebarTrigger } from "~/components/ui/sidebar";
 import { getInitials } from "~/lib/utils";
 import { useOrgKey } from "~/hooks/use-org-key";
-import { wrapOrgKey, unwrapOrgKey, getPrivateKey } from "~/lib/crypto";
+import { wrapOrgKey } from "~/lib/crypto";
 
 type MemberItem = {
   member: Doc<"organizationMembers">;

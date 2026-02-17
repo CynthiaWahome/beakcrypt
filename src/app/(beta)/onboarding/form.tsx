@@ -45,9 +45,9 @@ import {
   generateKeyPair,
   generateOrgKey,
   wrapOrgKey,
-  storePrivateKey,
+  storeKeyPair,
 } from "~/lib/crypto";
-import { getDeviceInfo } from "~/lib/device-info";
+import { authClient } from "~/lib/auth-client";
 
 const initialOrgState: Response<
   Doc<"organizations">,
@@ -138,15 +138,22 @@ export default function OnboardingForm() {
         const orgKey = await generateOrgKey();
         const wrappedKey = await wrapOrgKey(orgKey, keyPair.publicKey);
 
+        const { data: session } = await authClient.getSession();
+        const sessionToken = session?.session?.token;
+        if (!sessionToken) {
+          setKeySetupError("Failed to get session token. Try refreshing.");
+          return;
+        }
+
         const result = await registerKeyMutation({
           orgId,
           publicKey: JSON.stringify(keyPair.publicKey),
           wrappedOrgKey: wrappedKey,
-          deviceInfo: getDeviceInfo(),
+          sessionToken,
         });
 
         if (isSuccess(result)) {
-          storePrivateKey(orgId, keyPair.privateKey);
+          storeKeyPair(orgId, keyPair);
           setKeySetupDone(true);
         } else {
           setKeySetupError("Failed to register encryption key.");

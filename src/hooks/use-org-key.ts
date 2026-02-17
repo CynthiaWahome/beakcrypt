@@ -5,17 +5,23 @@ import { api } from "conv/_generated/api";
 import { isSuccess } from "conv/types";
 import { useState, useEffect, useRef } from "react";
 import type { Id } from "conv/_generated/dataModel";
-import { unwrapOrgKey, getPrivateKey } from "~/lib/crypto";
+import { unwrapOrgKey, getKeyPair } from "~/lib/crypto";
 
 export type OrgKeyStatus =
   | "loading"
   | "ready"
   | "pending_approval"
-  | "no_private_key"
+  | "no_key_pair"
   | "error";
 
 export function useOrgKey(orgId: Id<"organizations">) {
-  const myKeyResult = useQuery(api.keys.getMyKey, { orgId });
+  const keyPair = getKeyPair(orgId);
+  const publicKey = keyPair ? JSON.stringify(keyPair.publicKey) : null;
+
+  const myKeyResult = useQuery(
+    api.keys.getMyKey,
+    publicKey ? { orgId, publicKey } : "skip",
+  );
   const [orgKey, setOrgKey] = useState<string | null>(null);
   const [status, setStatus] = useState<OrgKeyStatus>("loading");
   const unwrapAttempted = useRef(false);
@@ -27,7 +33,12 @@ export function useOrgKey(orgId: Id<"organizations">) {
   }, [orgId]);
 
   useEffect(() => {
-    if (!myKeyResult || unwrapAttempted.current) return;
+    if (!publicKey) {
+      setStatus("no_key_pair");
+      return;
+    }
+
+    if (myKeyResult === undefined || unwrapAttempted.current) return;
 
     if (!isSuccess(myKeyResult)) {
       setStatus("error");
@@ -56,16 +67,15 @@ export function useOrgKey(orgId: Id<"organizations">) {
       return;
     }
 
-    const privateKey = getPrivateKey(orgId);
-    if (!privateKey) {
-      setStatus("no_private_key");
+    if (!keyPair) {
+      setStatus("no_key_pair");
       return;
     }
 
     unwrapAttempted.current = true;
     let isCancelled = false;
 
-    unwrapOrgKey(memberKey.wrappedOrgKey, privateKey)
+    unwrapOrgKey(memberKey.wrappedOrgKey, keyPair.privateKey)
       .then((key) => {
         if (!isCancelled) {
           setOrgKey(key);
@@ -81,7 +91,7 @@ export function useOrgKey(orgId: Id<"organizations">) {
     return () => {
       isCancelled = true;
     };
-  }, [myKeyResult, orgId]);
+  }, [myKeyResult, orgId, publicKey, keyPair]);
 
   return { orgKey, status };
 }

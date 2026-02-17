@@ -5,8 +5,8 @@ import { api } from "conv/_generated/api";
 import { isSuccess, isFailure } from "conv/types";
 import { useState, useEffect, useRef, useCallback } from "react";
 import type { Id } from "conv/_generated/dataModel";
-import { generateKeyPair, storePrivateKey, hasPrivateKey } from "~/lib/crypto";
-import { getDeviceInfo } from "~/lib/device-info";
+import { generateKeyPair, storeKeyPair, hasKeyPair } from "~/lib/crypto";
+import { authClient } from "~/lib/auth-client";
 
 export type DeviceKeySetupStatus =
   | "idle"
@@ -33,7 +33,7 @@ export function useDeviceKeySetup(orgId: Id<"organizations">) {
     let cancelled = false;
 
     if (attemptedRef.current) return;
-    if (hasPrivateKey(orgId)) {
+    if (hasKeyPair(orgId)) {
       setStatus("done");
       return;
     }
@@ -54,18 +54,25 @@ export function useDeviceKeySetup(orgId: Id<"organizations">) {
     (async () => {
       try {
         const keyPair = await generateKeyPair();
-        const deviceInfo = getDeviceInfo();
+
+        const { data } = await authClient.getSession();
+        const sessionToken = data?.session?.token;
+        if (!sessionToken) {
+          setStatus("error");
+          setError("Failed to get session token. Try refreshing.");
+          return;
+        }
 
         const result = await registerKeyMutation({
           orgId,
           publicKey: JSON.stringify(keyPair.publicKey),
-          deviceInfo,
+          sessionToken,
         });
 
         if (cancelled) return;
 
         if (isSuccess(result)) {
-          storePrivateKey(orgId, keyPair.privateKey);
+          storeKeyPair(orgId, keyPair);
           if (result.data.status === "active") {
             setStatus("done");
           } else {
