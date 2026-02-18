@@ -31,6 +31,7 @@ import {
   useEffect,
   useState,
   useTransition,
+  useRef,
 } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { useAction } from "convex/react";
@@ -110,8 +111,11 @@ export default function CreateProjectDialog({
     }
   }, [state.timestamp, hasError]);
 
+  const navigatedRef = useRef(false);
+
   useEffect(() => {
-    if (hasSuccess && state.data) {
+    if (hasSuccess && state.data && !navigatedRef.current) {
+      navigatedRef.current = true;
       onOpenChange(false);
       router.push(`/${slug}/${state.data.name}`);
     }

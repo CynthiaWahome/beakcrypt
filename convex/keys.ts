@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import type { Doc } from "./_generated/dataModel";
 import { query, mutation } from "./_generated/server";
+import type { MutationCtx } from "./_generated/server";
 import { Result, success, failure, HttpStatus, isFailure } from "./types";
 import { getAuthUser, requireOrgAdmin, requireOrgMember } from "./authHelpers";
 import { authComponent, createAuth } from "./auth";
@@ -158,15 +159,15 @@ export const getMyKey = query({
     const membershipResult = await requireOrgMember(ctx, args.orgId);
     if (isFailure(membershipResult)) return membershipResult;
 
-    const keys = await ctx.db
+    const matchingKey = await ctx.db
       .query("memberKeys")
-      .withIndex("by_org_and_user", (q) =>
-        q.eq("orgId", args.orgId).eq("userId", userResult.data._id),
+      .withIndex("by_org_user_publicKey", (q) =>
+        q
+          .eq("orgId", args.orgId)
+          .eq("userId", userResult.data._id)
+          .eq("publicKey", args.publicKey),
       )
-      .collect();
-
-    const matchingKey =
-      keys.find((k) => k.publicKey === args.publicKey) ?? null;
+      .unique();
 
     return success(matchingKey);
   },
@@ -368,63 +369,148 @@ export const approveMySession = mutation({
   },
 });
 
-export const revokeMySession = mutation({
+export const updateKeySessionToken = mutation({
   args: {
-    keyId: v.optional(v.id("memberKeys")),
-    sessionToken: v.optional(v.string()),
+    orgId: v.id("organizations"),
+    publicKey: v.string(),
+    sessionToken: v.string(),
   },
   handler: async (ctx, args): Promise<Result<null>> => {
     const userResult = await getAuthUser(ctx);
     if (isFailure(userResult)) return userResult;
 
-    if (!args.keyId && !args.sessionToken) {
+    const membershipResult = await requireOrgMember(ctx, args.orgId);
+    if (isFailure(membershipResult)) return membershipResult;
+
+    const key = await ctx.db
+      .query("memberKeys")
+      .withIndex("by_org_user_publicKey", (q) =>
+        q
+          .eq("orgId", args.orgId)
+          .eq("userId", userResult.data._id)
+          .eq("publicKey", args.publicKey),
+      )
+      .unique();
+
+    if (!key) {
       return failure(
-        HttpStatus.BAD_REQUEST,
-        "args:missing",
-        "Either keyId or sessionToken must be provided",
+        HttpStatus.NOT_FOUND,
+        "key:not_found",
+        "Key record not found",
       );
     }
 
-    let tokenToRevoke = args.sessionToken;
-
-    if (args.keyId) {
-      const memberKey = await ctx.db.get(args.keyId);
-      if (!memberKey) {
-        return failure(
-          HttpStatus.NOT_FOUND,
-          "key:not_found",
-          "Key record not found",
-        );
-      }
-
-      const membershipResult = await requireOrgMember(ctx, memberKey.orgId);
-      if (isFailure(membershipResult)) return membershipResult;
-
-      if (memberKey.userId !== userResult.data._id) {
-        return failure(
-          HttpStatus.FORBIDDEN,
-          "key:not_owner",
-          "You can only revoke your own device sessions",
-        );
-      }
-
-      await ctx.db.delete(args.keyId);
-      tokenToRevoke = memberKey.sessionToken;
+    if (key.sessionToken === args.sessionToken) {
+      return success(null);
     }
 
-    if (tokenToRevoke) {
-      try {
-        const { auth, headers } = await authComponent.getAuth(createAuth, ctx);
+    await ctx.db.patch(key._id, {
+      sessionToken: args.sessionToken,
+      updatedAt: Date.now(),
+    });
 
-        await auth.api.revokeSession({
-          body: { token: tokenToRevoke },
-          headers,
-        });
-      } catch (e) {
-        console.error("Failed to revoke Better Auth session:", e);
-      }
+    return success(null);
+  },
+});
+
+async function validateMyKey(
+  ctx: MutationCtx,
+  userId: string,
+  keyId: Doc<"memberKeys">["_id"],
+): Promise<Result<Doc<"memberKeys">>> {
+  const key = await ctx.db.get(keyId);
+  if (!key) {
+    return failure(HttpStatus.NOT_FOUND, "key:not_found", "Key record not found");
+  }
+
+  const membershipResult = await requireOrgMember(ctx, key.orgId);
+  if (isFailure(membershipResult)) return membershipResult;
+
+  if (key.userId !== userId) {
+    return failure(
+      HttpStatus.FORBIDDEN,
+      "key:not_owner",
+      "You can only manage your own device keys",
+    );
+  }
+
+  return success(key);
+}
+
+export const revokeMyKey = mutation({
+  args: {
+    keyId: v.id("memberKeys"),
+  },
+  handler: async (ctx, args): Promise<Result<null>> => {
+    const userResult = await getAuthUser(ctx);
+    if (isFailure(userResult)) return userResult;
+
+    const keyResult = await validateMyKey(ctx, userResult.data._id, args.keyId);
+    if (isFailure(keyResult)) return keyResult;
+
+    await ctx.db.delete(args.keyId);
+    return success(null);
+  },
+});
+
+export const revokeMyAuthSession = mutation({
+  args: {
+    sessionToken: v.string(),
+  },
+  handler: async (ctx, args): Promise<Result<null>> => {
+    const userResult = await getAuthUser(ctx);
+    if (isFailure(userResult)) return userResult;
+
+    try {
+      const { auth, headers } = await authComponent.getAuth(createAuth, ctx);
+
+      await auth.api.revokeSession({
+        body: { token: args.sessionToken },
+        headers,
+      });
+    } catch (e) {
+      console.error("Failed to revoke Better Auth session:", e);
+      return failure(
+        HttpStatus.INTERNAL_SERVER_ERROR,
+        "session:revoke_failed",
+        "Failed to revoke login session",
+      );
     }
 
+    return success(null);
+  },
+});
+
+export const revokeMySessionAndKey = mutation({
+  args: {
+    keyId: v.id("memberKeys"),
+  },
+  handler: async (ctx, args): Promise<Result<null>> => {
+    const userResult = await getAuthUser(ctx);
+    if (isFailure(userResult)) return userResult;
+
+    const keyResult = await validateMyKey(ctx, userResult.data._id, args.keyId);
+    if (isFailure(keyResult)) return keyResult;
+
+    const key = keyResult.data;
+
+    try {
+      const { auth, headers } = await authComponent.getAuth(createAuth, ctx);
+
+      await auth.api.revokeSession({
+        body: { token: key.sessionToken },
+        headers,
+      });
+    } catch (e) {
+      console.error("Failed to revoke Better Auth session:", e);
+      return failure(
+        HttpStatus.INTERNAL_SERVER_ERROR,
+        "session:revoke_failed",
+        "Failed to revoke login session",
+      );
+    }
+
+    await ctx.db.delete(args.keyId);
     return success(null);
   },
 });

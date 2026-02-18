@@ -181,14 +181,22 @@ export default function OnboardingForm() {
   const hasError = "error" in activeState && !!activeState.error;
   const errorTimerRef = useRef<ReturnType<typeof setTimeout>>(null);
 
-  if (activeState.timestamp !== lastTimestamp) {
-    setLastTimestamp(activeState.timestamp);
-    if (hasError) {
-      setShowError(true);
-      if (errorTimerRef.current) clearTimeout(errorTimerRef.current);
-      errorTimerRef.current = setTimeout(() => setShowError(false), 3000);
+  useEffect(() => {
+    if (activeState.timestamp !== lastTimestamp) {
+      setLastTimestamp(activeState.timestamp);
+      if (hasError) {
+        setShowError(true);
+        if (errorTimerRef.current) clearTimeout(errorTimerRef.current);
+        errorTimerRef.current = setTimeout(() => setShowError(false), 3000);
+      } else {
+        setShowError(false);
+      }
     }
-  }
+
+    return () => {
+      if (errorTimerRef.current) clearTimeout(errorTimerRef.current);
+    };
+  }, [activeState.timestamp, hasError, lastTimestamp]);
 
   if (isInviteSent || isSkipped) {
     return (

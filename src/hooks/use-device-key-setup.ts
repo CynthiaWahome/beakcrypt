@@ -5,12 +5,13 @@ import { api } from "conv/_generated/api";
 import { isSuccess, isFailure } from "conv/types";
 import { useState, useEffect, useRef, useCallback } from "react";
 import type { Id } from "conv/_generated/dataModel";
-import { generateKeyPair, storeKeyPair, hasKeyPair } from "~/lib/crypto";
+import { generateKeyPair, storeKeyPair, hasKeyPair, getKeyPair } from "~/lib/crypto";
 import { authClient } from "~/lib/auth-client";
 
 type DeviceKeySetupStatus =
   | "idle"
   | "registering"
+  | "syncing_token"
   | "pending_approval"
   | "done"
   | "error";
@@ -20,6 +21,7 @@ export function useDeviceKeySetup(orgId: Id<"organizations">) {
   const [error, setError] = useState("");
   const [retryCount, setRetryCount] = useState(0);
   const registerKeyMutation = useMutation(api.keys.registerKey);
+  const updateTokenMutation = useMutation(api.keys.updateKeySessionToken);
   const sessionsResult = useQuery(api.keys.listMySessions, { orgId });
   const attemptedRef = useRef(false);
 
@@ -35,9 +37,45 @@ export function useDeviceKeySetup(orgId: Id<"organizations">) {
     let cancelled = false;
 
     if (attemptedRef.current) return;
-    if (hasKeyPair(orgId)) {
-      setStatus("done");
-      return;
+
+    const existingKeyPair = getKeyPair(orgId);
+    if (existingKeyPair) {
+      attemptedRef.current = true;
+      setStatus("syncing_token");
+
+      (async () => {
+        try {
+          const { data } = await authClient.getSession();
+          const sessionToken = data?.session?.token;
+          if (cancelled) return;
+          if (!sessionToken) {
+            setStatus("done");
+            return;
+          }
+
+          const result = await updateTokenMutation({
+            orgId,
+            publicKey: JSON.stringify(existingKeyPair.publicKey),
+            sessionToken,
+          });
+
+          if (cancelled) return;
+
+          if (isFailure(result)) {
+            console.error("Failed to sync session token:", result.error);
+          }
+
+          setStatus("done");
+        } catch {
+          if (cancelled) return;
+          console.error("Failed to sync session token");
+          setStatus("done");
+        }
+      })();
+
+      return () => {
+        cancelled = true;
+      };
     }
 
     if (sessionsResult === undefined) return;
@@ -59,6 +97,7 @@ export function useDeviceKeySetup(orgId: Id<"organizations">) {
 
         const { data } = await authClient.getSession();
         const sessionToken = data?.session?.token;
+        if (cancelled) return;
         if (!sessionToken) {
           setStatus("error");
           setError("Failed to get session token. Try refreshing.");
@@ -95,7 +134,7 @@ export function useDeviceKeySetup(orgId: Id<"organizations">) {
     return () => {
       cancelled = true;
     };
-  }, [orgId, sessionsResult, registerKeyMutation, retryCount]);
+  }, [orgId, sessionsResult, registerKeyMutation, updateTokenMutation, retryCount]);
 
   const retry = useCallback(() => {
     attemptedRef.current = false;

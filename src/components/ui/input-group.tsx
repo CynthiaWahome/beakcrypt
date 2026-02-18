@@ -64,7 +64,8 @@ function InputGroupAddon({
 }: React.ComponentProps<"div"> & VariantProps<typeof inputGroupAddonVariants>) {
   return (
     <div
-      role="group"
+      role="button"
+      tabIndex={0}
       data-slot="input-group-addon"
       data-align={align}
       className={cn(inputGroupAddonVariants({ align }), className)}
@@ -79,6 +80,8 @@ function InputGroupAddon({
           if ((e.target as HTMLElement).closest("button")) {
             return;
           }
+          // Prevent scrolling for space key
+          if (e.key === " ") e.preventDefault();
           e.currentTarget.parentElement?.querySelector("input")?.focus();
         }
       }}

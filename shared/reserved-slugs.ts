@@ -610,7 +610,9 @@ export function isReservedSlug(slug: string): boolean {
   return RESERVED_SLUG_SET.has(slug.trim().toLowerCase() as ReservedSlug);
 }
 
-type SlugValidationResult = { valid: true } | { valid: false; error: string };
+export type SlugValidationResult =
+  | { valid: true }
+  | { valid: false; error: string };
 
 /**
  * Validates a slug for organization URLs.
@@ -643,7 +645,7 @@ export function validateSlug(slug: string): SlugValidationResult {
     };
   }
 
-  const normalizedSlug = trimmedSlug.toLowerCase();
+  const normalizedSlug = trimmedSlug;
 
   if (normalizedSlug.length < 3) {
     return { valid: false, error: "Slug must be at least 3 characters" };

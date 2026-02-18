@@ -23,18 +23,19 @@ export function useOrgKey(orgId: Id<"organizations">) {
     publicKey ? { orgId, publicKey } : "skip",
   );
   const [orgKey, setOrgKey] = useState<string | null>(null);
-  const [status, setStatus] = useState<OrgKeyStatus>("loading");
+  const [status, setStatus] = useState<OrgKeyStatus>(() =>
+    !publicKey ? "no_key_pair" : "loading",
+  );
   const unwrapAttempted = useRef(false);
 
   useEffect(() => {
     unwrapAttempted.current = false;
     setOrgKey(null);
-    setStatus("loading");
-  }, [orgId]);
+    setStatus(!publicKey ? "no_key_pair" : "loading");
+  }, [orgId, publicKey]);
 
   useEffect(() => {
     if (!publicKey) {
-      setStatus("no_key_pair");
       return;
     }
 
@@ -67,8 +68,9 @@ export function useOrgKey(orgId: Id<"organizations">) {
       return;
     }
 
+    // keyPair is guaranteed if publicKey exists (derived from it)
     if (!keyPair) {
-      setStatus("no_key_pair");
+      // Should result in "no_key_pair" but unreachable if publicKey is present
       return;
     }
 
@@ -91,7 +93,7 @@ export function useOrgKey(orgId: Id<"organizations">) {
     return () => {
       isCancelled = true;
     };
-  }, [myKeyResult, orgId, publicKey, keyPair]);
+  }, [myKeyResult, orgId, publicKey]); // Removed keyPair, it's unstable object but stable related to publicKey string
 
   return { orgKey, status };
 }

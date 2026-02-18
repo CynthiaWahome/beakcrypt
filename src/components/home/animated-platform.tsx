@@ -22,12 +22,16 @@ export default function AnimatedPlatform() {
   });
 
   useEffect(() => {
+    let timeoutId: NodeJS.Timeout;
     const interval = setInterval(() => {
       dispatch("animate-out");
-      setTimeout(() => dispatch("animate-in"), 300);
+      timeoutId = setTimeout(() => dispatch("animate-in"), 300);
     }, 2500);
 
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(interval);
+      clearTimeout(timeoutId);
+    };
   }, []);
 
   return (

@@ -113,5 +113,6 @@ export default defineSchema({
     .index("by_org", ["orgId"])
     .index("by_user", ["userId"])
     .index("by_org_and_user", ["orgId", "userId"])
-    .index("by_org_and_status", ["orgId", "status"]),
+    .index("by_org_and_status", ["orgId", "status"])
+    .index("by_org_user_publicKey", ["orgId", "userId", "publicKey"]),
 });

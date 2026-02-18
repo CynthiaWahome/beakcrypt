@@ -65,7 +65,7 @@ export default function AnimatedTerminal() {
     terminalLines.forEach((line, index) => {
       cumulativeDelay += line.delay;
       setTimeout(() => {
-        setVisibleCount(() => index + 1);
+        setVisibleCount(index + 1);
       }, cumulativeDelay);
     });
 
