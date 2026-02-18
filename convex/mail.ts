@@ -7,7 +7,9 @@ import { render } from "@react-email/components";
 import { WelcomeEmail } from "../emails/welcome";
 import { InviteUserEmail } from "../emails/invite";
 import { internalAction } from "./_generated/server";
+import { KeyApprovalEmail } from "../emails/key-approval";
 import type SMTPTransport from "nodemailer/lib/smtp-transport";
+import { SessionApprovalEmail } from "../emails/session-approval";
 
 export class EmailService extends Context.Tag("EmailService")<
   EmailService,
@@ -95,6 +97,70 @@ export const sendWelcomeMail = internalAction({
         to: args.email,
         subject: "Welcome to Beakcrypt",
         html: emailHtml,
+      });
+    });
+
+    await Effect.runPromise(program.pipe(Effect.provide(EmailServiceLive)));
+  },
+});
+
+export const sendKeyApprovalMail = internalAction({
+  args: {
+    memberEmail: v.string(),
+    orgName: v.string(),
+    orgSlug: v.string(),
+    keyId: v.string(),
+    adminEmails: v.array(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const approveLink = `${process.env.SITE_URL}/${args.orgSlug}/teams?approveKey=${args.keyId}`;
+
+    const emailHtml = await render(
+      KeyApprovalEmail({
+        memberEmail: args.memberEmail,
+        orgName: args.orgName,
+        approveLink,
+      }),
+    );
+
+    const program = Effect.gen(function* () {
+      const emailService = yield* EmailService;
+      for (const adminEmail of args.adminEmails) {
+        yield* emailService.send({
+          to: adminEmail,
+          html: emailHtml,
+          subject: `Key approval needed for ${args.memberEmail} in ${args.orgName}`,
+        });
+      }
+    });
+
+    await Effect.runPromise(program.pipe(Effect.provide(EmailServiceLive)));
+  },
+});
+
+export const sendSessionApprovalMail = internalAction({
+  args: {
+    userEmail: v.string(),
+    orgName: v.string(),
+    orgSlug: v.string(),
+    keyId: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const approveLink = `${process.env.SITE_URL}/${args.orgSlug}/sessions?approveSession=${args.keyId}`;
+
+    const emailHtml = await render(
+      SessionApprovalEmail({
+        orgName: args.orgName,
+        approveLink,
+      }),
+    );
+
+    const program = Effect.gen(function* () {
+      const emailService = yield* EmailService;
+      return yield* emailService.send({
+        to: args.userEmail,
+        html: emailHtml,
+        subject: `New device needs approval for ${args.orgName}`,
       });
     });
 

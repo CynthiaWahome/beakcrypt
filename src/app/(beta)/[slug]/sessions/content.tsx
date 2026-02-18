@@ -3,8 +3,8 @@
 import { useQuery, useMutation } from "convex/react";
 import { api } from "conv/_generated/api";
 import { isSuccess, isFailure } from "conv/types";
-import type { Doc } from "conv/_generated/dataModel";
-import { useState, useEffect, useTransition, useCallback } from "react";
+import type { Doc, Id } from "conv/_generated/dataModel";
+import { useState, useEffect, useTransition, useCallback, useRef } from "react";
 import { Button } from "~/components/ui/button";
 import { Badge } from "~/components/ui/badge";
 import { Separator } from "~/components/ui/separator";
@@ -47,7 +47,7 @@ import { useOrgKey } from "~/hooks/use-org-key";
 import { wrapOrgKey } from "~/lib/crypto";
 import { authClient, useSession } from "~/lib/auth-client";
 import type { Session } from "~/lib/auth-client";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 interface Props {
   organization: Doc<"organizations">;
@@ -169,6 +169,93 @@ export default function SessionsContent({ organization }: Props) {
   const loading = memberKeys === null || authSessions === null;
   const error = authError || keysError;
 
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const approveSessionId = searchParams.get("approveSession");
+  const approveSessionResult = useQuery(
+    api.keys.getKeyById,
+    approveSessionId ? { keyId: approveSessionId as Id<"memberKeys"> } : "skip",
+  );
+  const approveSessionMutation = useMutation(api.keys.approveMySession);
+  const [autoApproveOpen, setAutoApproveOpen] = useState(false);
+  const [autoApproveStatus, setAutoApproveStatus] = useState<
+    "loading" | "success" | "error"
+  >("loading");
+  const [autoApproveError, setAutoApproveError] = useState("");
+  const autoApproveAttempted = useRef(false);
+
+  useEffect(() => {
+    if (approveSessionId) {
+      setAutoApproveOpen(true);
+    }
+  }, [approveSessionId]);
+
+  useEffect(() => {
+    if (
+      !autoApproveOpen ||
+      !approveSessionId ||
+      !orgKey ||
+      autoApproveAttempted.current
+    )
+      return;
+    if (approveSessionResult === undefined) return;
+
+    if (isFailure(approveSessionResult)) {
+      setAutoApproveError(approveSessionResult.error);
+      setAutoApproveStatus("error");
+      return;
+    }
+
+    const key = approveSessionResult.data;
+    if (key.status !== "pending") {
+      setAutoApproveStatus("success");
+      return;
+    }
+
+    autoApproveAttempted.current = true;
+
+    (async () => {
+      try {
+        const publicKeyJwk = JSON.parse(key.publicKey) as JsonWebKey;
+        const wrappedKey = await wrapOrgKey(orgKey, publicKeyJwk);
+        const result = await approveSessionMutation({
+          keyId: key._id,
+          wrappedOrgKey: wrappedKey,
+        });
+        if (isFailure(result)) {
+          setAutoApproveError(result.error);
+          setAutoApproveStatus("error");
+        } else {
+          setAutoApproveStatus("success");
+          await fetchSessions();
+        }
+      } catch {
+        setAutoApproveError("Something went wrong during session approval.");
+        setAutoApproveStatus("error");
+      }
+    })();
+  }, [
+    autoApproveOpen,
+    approveSessionId,
+    orgKey,
+    approveSessionResult,
+    approveSessionMutation,
+    fetchSessions,
+  ]);
+
+  const handleAutoApproveClose = useCallback(() => {
+    setAutoApproveOpen(false);
+    autoApproveAttempted.current = false;
+    setAutoApproveStatus("loading");
+    setAutoApproveError("");
+    const params = new URLSearchParams(window.location.search);
+    params.delete("approveSession");
+    const newPath = params.toString()
+      ? `${window.location.pathname}?${params.toString()}`
+      : window.location.pathname;
+    router.replace(newPath);
+  }, [router]);
+
   const unified =
     authSessions && memberKeys
       ? buildUnifiedSessions(authSessions, memberKeys, currentSessionToken)
@@ -228,6 +315,49 @@ export default function SessionsContent({ organization }: Props) {
           </div>
         )}
       </div>
+
+      <Dialog
+        open={autoApproveOpen}
+        onOpenChange={(open) => {
+          if (!open) handleAutoApproveClose();
+        }}
+      >
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>
+              {autoApproveStatus === "success"
+                ? "Session Approved"
+                : autoApproveStatus === "error"
+                  ? "Approval Failed"
+                  : "Approving Session..."}
+            </DialogTitle>
+            <DialogDescription>
+              {autoApproveStatus === "success"
+                ? "The new device session has been approved successfully. It can now access shared secrets."
+                : autoApproveStatus === "error"
+                  ? autoApproveError || "An unknown error occurred."
+                  : "Decrypting org key and encrypting for the new device..."}
+            </DialogDescription>
+          </DialogHeader>
+          {autoApproveStatus === "loading" && (
+            <div className="flex items-center justify-center py-4">
+              <Loader2 className="size-6 animate-spin text-muted-foreground" />
+            </div>
+          )}
+          {autoApproveStatus === "success" && (
+            <div className="flex items-center justify-center py-4">
+              <div className="flex size-12 items-center justify-center rounded-full bg-emerald-500/10">
+                <Check className="size-6 text-emerald-400" />
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button onClick={handleAutoApproveClose}>
+              {autoApproveStatus === "loading" ? "Cancel" : "Close"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

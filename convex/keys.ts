@@ -2,6 +2,7 @@ import { v } from "convex/values";
 import type { Doc } from "./_generated/dataModel";
 import { query, mutation } from "./_generated/server";
 import type { MutationCtx } from "./_generated/server";
+import { internal } from "./_generated/api";
 import { Result, success, failure, HttpStatus, isFailure } from "./types";
 import { getAuthUser, requireOrgAdmin, requireOrgMember } from "./authHelpers";
 import { authComponent, createAuth } from "./auth";
@@ -82,7 +83,81 @@ export const registerKey = mutation({
       );
     }
 
+    if (status === "pending" && org.slug) {
+      const existingKeys = await ctx.db
+        .query("memberKeys")
+        .withIndex("by_org_and_user", (q) =>
+          q.eq("orgId", args.orgId).eq("userId", user._id),
+        )
+        .collect();
+
+      const otherKeys = existingKeys.filter((k) => k._id !== keyId);
+      const isNewDevice = otherKeys.length > 0;
+
+      if (isNewDevice) {
+        await ctx.scheduler.runAfter(0, internal.mail.sendSessionApprovalMail, {
+          userEmail: user.email,
+          orgName: org.name,
+          orgSlug: org.slug,
+          keyId: keyId,
+        });
+      } else {
+        const allMembers = await ctx.db
+          .query("organizationMembers")
+          .withIndex("by_org", (q) => q.eq("orgId", args.orgId))
+          .collect();
+
+        const adminMembers = allMembers.filter(
+          (m) => m.role === "owner" || m.role === "admin",
+        );
+
+        const adminEmails: string[] = [];
+        for (const m of adminMembers) {
+          const adminUser = await authComponent
+            .getAnyUserById(ctx, m.userId)
+            .catch(() => null);
+          if (adminUser?.email) {
+            adminEmails.push(adminUser.email);
+          }
+        }
+
+        if (adminEmails.length > 0) {
+          await ctx.scheduler.runAfter(0, internal.mail.sendKeyApprovalMail, {
+            memberEmail: user.email,
+            orgName: org.name,
+            orgSlug: org.slug,
+            keyId: keyId,
+            adminEmails,
+          });
+        }
+      }
+    }
+
     return success(record, HttpStatus.CREATED);
+  },
+});
+
+export const getKeyById = query({
+  args: {
+    keyId: v.id("memberKeys"),
+  },
+  handler: async (ctx, args): Promise<Result<Doc<"memberKeys">>> => {
+    const userResult = await getAuthUser(ctx);
+    if (isFailure(userResult)) return userResult;
+
+    const key = await ctx.db.get(args.keyId);
+    if (!key) {
+      return failure(
+        HttpStatus.NOT_FOUND,
+        "key:not_found",
+        "Key record not found",
+      );
+    }
+
+    const membershipResult = await requireOrgMember(ctx, key.orgId);
+    if (isFailure(membershipResult)) return membershipResult;
+
+    return success(key);
   },
 });
 

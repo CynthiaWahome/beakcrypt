@@ -9,7 +9,7 @@ import {
 import { api } from "conv/_generated/api";
 import { isSuccess, isFailure } from "conv/types";
 import type { Doc, Id } from "conv/_generated/dataModel";
-import { useState, useTransition, useRef } from "react";
+import { useState, useTransition, useRef, useEffect, useCallback } from "react";
 import {
   Users,
   Mail,
@@ -56,6 +56,7 @@ import { SidebarTrigger } from "~/components/ui/sidebar";
 import { getInitials } from "~/lib/utils";
 import { useOrgKey } from "~/hooks/use-org-key";
 import { wrapOrgKey } from "~/lib/crypto";
+import { useSearchParams, useRouter } from "next/navigation";
 
 type MemberItem = {
   member: Doc<"organizationMembers">;
@@ -106,6 +107,91 @@ export default function TeamsContent({
       : [];
 
   const { orgKey } = useOrgKey(organization._id);
+
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const approveKeyId = searchParams.get("approveKey");
+  const approveKeyResult = useQuery(
+    api.keys.getKeyById,
+    approveKeyId ? { keyId: approveKeyId as Id<"memberKeys"> } : "skip",
+  );
+  const approveKeyMutation = useMutation(api.keys.approveKey);
+  const [autoApproveOpen, setAutoApproveOpen] = useState(false);
+  const [autoApproveStatus, setAutoApproveStatus] = useState<
+    "loading" | "success" | "error"
+  >("loading");
+  const [autoApproveError, setAutoApproveError] = useState("");
+  const autoApproveAttempted = useRef(false);
+
+  useEffect(() => {
+    if (approveKeyId) {
+      setAutoApproveOpen(true);
+    }
+  }, [approveKeyId]);
+
+  useEffect(() => {
+    if (
+      !autoApproveOpen ||
+      !approveKeyId ||
+      !orgKey ||
+      autoApproveAttempted.current
+    )
+      return;
+    if (approveKeyResult === undefined) return;
+
+    if (isFailure(approveKeyResult)) {
+      setAutoApproveError(approveKeyResult.error);
+      setAutoApproveStatus("error");
+      return;
+    }
+
+    const key = approveKeyResult.data;
+    if (key.status !== "pending") {
+      setAutoApproveStatus("success");
+      return;
+    }
+
+    autoApproveAttempted.current = true;
+
+    (async () => {
+      try {
+        const publicKeyJwk = JSON.parse(key.publicKey) as JsonWebKey;
+        const wrappedKey = await wrapOrgKey(orgKey, publicKeyJwk);
+        const result = await approveKeyMutation({
+          keyId: key._id,
+          wrappedOrgKey: wrappedKey,
+        });
+        if (isFailure(result)) {
+          setAutoApproveError(result.error);
+          setAutoApproveStatus("error");
+        } else {
+          setAutoApproveStatus("success");
+        }
+      } catch {
+        setAutoApproveError("Something went wrong during key approval.");
+        setAutoApproveStatus("error");
+      }
+    })();
+  }, [
+    autoApproveOpen,
+    approveKeyId,
+    orgKey,
+    approveKeyResult,
+    approveKeyMutation,
+  ]);
+
+  const handleAutoApproveClose = useCallback(() => {
+    setAutoApproveOpen(false);
+    autoApproveAttempted.current = false;
+    setAutoApproveStatus("loading");
+    setAutoApproveError("");
+    const params = new URLSearchParams(window.location.search);
+    params.delete("approveKey");
+    const newPath = params.toString()
+      ? `${window.location.pathname}?${params.toString()}`
+      : window.location.pathname;
+    router.replace(newPath);
+  }, [router]);
 
   const inviteMutation = useMutation(api.invites.create);
   const [inviteOpen, setInviteOpen] = useState(false);
@@ -342,6 +428,49 @@ export default function TeamsContent({
                   Send Invite
                 </>
               )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={autoApproveOpen}
+        onOpenChange={(open) => {
+          if (!open) handleAutoApproveClose();
+        }}
+      >
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>
+              {autoApproveStatus === "success"
+                ? "Key Approved"
+                : autoApproveStatus === "error"
+                  ? "Approval Failed"
+                  : "Approving Key..."}
+            </DialogTitle>
+            <DialogDescription>
+              {autoApproveStatus === "success"
+                ? "The member's encryption key has been approved successfully. They can now access shared secrets."
+                : autoApproveStatus === "error"
+                  ? autoApproveError || "An unknown error occurred."
+                  : "Decrypting org key and encrypting for the new member..."}
+            </DialogDescription>
+          </DialogHeader>
+          {autoApproveStatus === "loading" && (
+            <div className="flex items-center justify-center py-4">
+              <Loader2 className="size-6 animate-spin text-muted-foreground" />
+            </div>
+          )}
+          {autoApproveStatus === "success" && (
+            <div className="flex items-center justify-center py-4">
+              <div className="flex size-12 items-center justify-center rounded-full bg-emerald-500/10">
+                <Check className="size-6 text-emerald-400" />
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button onClick={handleAutoApproveClose}>
+              {autoApproveStatus === "loading" ? "Cancel" : "Close"}
             </Button>
           </DialogFooter>
         </DialogContent>
