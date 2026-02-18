@@ -129,7 +129,10 @@ export default function ProjectContent({
     if (!hasLocalEnv && environments.length > 0) {
       localEnvCreatedRef.current = true;
       ensureLocalMutation({ projectId: project._id, syncFromDev: true }).catch(
-        (err) => console.error("Failed to create personal local env:", err),
+        (err) => {
+          localEnvCreatedRef.current = false;
+          console.error("Failed to create personal local env:", err);
+        },
       );
     }
   }, [environments, ensureLocalMutation, project._id]);
