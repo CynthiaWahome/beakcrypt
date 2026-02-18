@@ -79,10 +79,13 @@ export default defineSchema({
     updatedAt: v.number(),
     projectId: v.id("projects"),
     createdAt: v.optional(v.number()),
+    isPersonal: v.optional(v.boolean()),
+    ownerId: v.optional(v.string()),
   })
     .index("by_name", ["name"])
     .index("by_project", ["projectId"])
-    .index("by_project_and_name", ["projectId", "name"]),
+    .index("by_project_and_name", ["projectId", "name"])
+    .index("by_project_and_owner", ["projectId", "ownerId"]),
 
   secrets: defineTable({
     key: v.string(),

@@ -5,7 +5,6 @@ import { Result, success, failure, HttpStatus, isFailure } from "./types";
 import { getAuthUser, requireOrgAdmin, requireOrgMember } from "./authHelpers";
 
 const DEFAULT_ENVIRONMENTS = [
-  { name: "local", order: 0 },
   { name: "development", order: 1 },
   { name: "staging", order: 2 },
   { name: "production", order: 3 },

@@ -1,8 +1,65 @@
 import { v } from "convex/values";
-import type { Doc } from "./_generated/dataModel";
+import type { Doc, Id } from "./_generated/dataModel";
 import { query, mutation } from "./_generated/server";
+import type { QueryCtx, MutationCtx } from "./_generated/server";
 import { Result, success, failure, HttpStatus, isFailure } from "./types";
 import { getAuthUser, requireOrgAdmin, requireOrgMember } from "./authHelpers";
+
+async function requireEnvWriteAccess(
+  ctx: QueryCtx | MutationCtx,
+  environmentId: Id<"environments">,
+) {
+  const userResult = await getAuthUser(ctx);
+  if (isFailure(userResult)) return { ok: false as const, result: userResult };
+
+  const environment = await ctx.db.get(environmentId);
+  if (!environment) {
+    return {
+      ok: false as const,
+      result: failure(
+        HttpStatus.NOT_FOUND,
+        "env:not_found",
+        "Environment not found",
+      ),
+    };
+  }
+
+  const project = await ctx.db.get(environment.projectId);
+  if (!project) {
+    return {
+      ok: false as const,
+      result: failure(
+        HttpStatus.NOT_FOUND,
+        "project:not_found",
+        "Project not found",
+      ),
+    };
+  }
+
+  if (environment.isPersonal) {
+    if (environment.ownerId !== userResult.data._id) {
+      return {
+        ok: false as const,
+        result: failure(
+          HttpStatus.FORBIDDEN,
+          "env:not_owner",
+          "You can only manage secrets in your own personal environment",
+        ),
+      };
+    }
+    const authResult = await requireOrgMember(ctx, project.orgId);
+    if (isFailure(authResult)) {
+      return { ok: false as const, result: authResult };
+    }
+    return { ok: true as const, user: userResult.data, project, environment };
+  }
+
+  const authResult = await requireOrgAdmin(ctx, project.orgId);
+  if (isFailure(authResult)) {
+    return { ok: false as const, result: authResult };
+  }
+  return { ok: true as const, user: userResult.data, project, environment };
+}
 
 export const list = query({
   args: {
@@ -30,6 +87,14 @@ export const list = query({
       );
     }
 
+    if (environment.isPersonal && environment.ownerId !== userResult.data._id) {
+      return failure(
+        HttpStatus.FORBIDDEN,
+        "env:not_owner",
+        "You cannot view secrets in another user's personal environment",
+      );
+    }
+
     const authResult = await requireOrgMember(ctx, project.orgId);
     if (isFailure(authResult)) return authResult;
 
@@ -51,29 +116,8 @@ export const create = mutation({
     encryptedValue: v.string(),
   },
   handler: async (ctx, args): Promise<Result<Doc<"secrets">>> => {
-    const userResult = await getAuthUser(ctx);
-    if (isFailure(userResult)) return userResult;
-
-    const environment = await ctx.db.get(args.environmentId);
-    if (!environment) {
-      return failure(
-        HttpStatus.NOT_FOUND,
-        "env:not_found",
-        "Environment not found",
-      );
-    }
-
-    const project = await ctx.db.get(environment.projectId);
-    if (!project) {
-      return failure(
-        HttpStatus.NOT_FOUND,
-        "project:not_found",
-        "Project not found",
-      );
-    }
-
-    const authResult = await requireOrgAdmin(ctx, project.orgId);
-    if (isFailure(authResult)) return authResult;
+    const access = await requireEnvWriteAccess(ctx, args.environmentId);
+    if (!access.ok) return access.result;
 
     if (args.key.trim().length === 0) {
       return failure(
@@ -102,7 +146,7 @@ export const create = mutation({
       key: args.key,
       encryptedValue: args.encryptedValue,
       environmentId: args.environmentId,
-      createdBy: authResult.data.user._id,
+      createdBy: access.user._id,
       createdAt: Date.now(),
       updatedAt: Date.now(),
     });
@@ -139,26 +183,8 @@ export const update = mutation({
       );
     }
 
-    const environment = await ctx.db.get(secret.environmentId);
-    if (!environment) {
-      return failure(
-        HttpStatus.NOT_FOUND,
-        "env:not_found",
-        "Environment not found",
-      );
-    }
-
-    const project = await ctx.db.get(environment.projectId);
-    if (!project) {
-      return failure(
-        HttpStatus.NOT_FOUND,
-        "project:not_found",
-        "Project not found",
-      );
-    }
-
-    const authResult = await requireOrgAdmin(ctx, project.orgId);
-    if (isFailure(authResult)) return authResult;
+    const access = await requireEnvWriteAccess(ctx, secret.environmentId);
+    if (!access.ok) return access.result;
 
     if (args.key !== undefined && args.key !== secret.key) {
       const newKey = args.key;
@@ -216,26 +242,8 @@ export const remove = mutation({
       );
     }
 
-    const environment = await ctx.db.get(secret.environmentId);
-    if (!environment) {
-      return failure(
-        HttpStatus.NOT_FOUND,
-        "env:not_found",
-        "Environment not found",
-      );
-    }
-
-    const project = await ctx.db.get(environment.projectId);
-    if (!project) {
-      return failure(
-        HttpStatus.NOT_FOUND,
-        "project:not_found",
-        "Project not found",
-      );
-    }
-
-    const authResult = await requireOrgAdmin(ctx, project.orgId);
-    if (isFailure(authResult)) return authResult;
+    const access = await requireEnvWriteAccess(ctx, secret.environmentId);
+    if (!access.ok) return access.result;
 
     await ctx.db.delete(args.id);
 
@@ -248,29 +256,8 @@ export const removeAll = mutation({
     environmentId: v.id("environments"),
   },
   handler: async (ctx, args): Promise<Result<{ deleted: number }>> => {
-    const userResult = await getAuthUser(ctx);
-    if (isFailure(userResult)) return userResult;
-
-    const environment = await ctx.db.get(args.environmentId);
-    if (!environment) {
-      return failure(
-        HttpStatus.NOT_FOUND,
-        "env:not_found",
-        "Environment not found",
-      );
-    }
-
-    const project = await ctx.db.get(environment.projectId);
-    if (!project) {
-      return failure(
-        HttpStatus.NOT_FOUND,
-        "project:not_found",
-        "Project not found",
-      );
-    }
-
-    const authResult = await requireOrgAdmin(ctx, project.orgId);
-    if (isFailure(authResult)) return authResult;
+    const access = await requireEnvWriteAccess(ctx, args.environmentId);
+    if (!access.ok) return access.result;
 
     const secrets = await ctx.db
       .query("secrets")
@@ -305,29 +292,8 @@ export const bulkCreate = mutation({
     overwrite: v.optional(v.boolean()),
   },
   handler: async (ctx, args): Promise<Result<BulkCreateResult>> => {
-    const userResult = await getAuthUser(ctx);
-    if (isFailure(userResult)) return userResult;
-
-    const environment = await ctx.db.get(args.environmentId);
-    if (!environment) {
-      return failure(
-        HttpStatus.NOT_FOUND,
-        "env:not_found",
-        "Environment not found",
-      );
-    }
-
-    const project = await ctx.db.get(environment.projectId);
-    if (!project) {
-      return failure(
-        HttpStatus.NOT_FOUND,
-        "project:not_found",
-        "Project not found",
-      );
-    }
-
-    const authResult = await requireOrgAdmin(ctx, project.orgId);
-    if (isFailure(authResult)) return authResult;
+    const access = await requireEnvWriteAccess(ctx, args.environmentId);
+    if (!access.ok) return access.result;
 
     const results: BulkCreateResult = {
       created: 0,
@@ -358,7 +324,7 @@ export const bulkCreate = mutation({
           key: secret.key,
           encryptedValue: secret.encryptedValue,
           environmentId: args.environmentId,
-          createdBy: authResult.data.user._id,
+          createdBy: access.user._id,
           createdAt: Date.now(),
           updatedAt: Date.now(),
         });
@@ -412,17 +378,16 @@ export const syncFromEnvironment = mutation({
       );
     }
 
-    const project = await ctx.db.get(sourceEnv.projectId);
-    if (!project) {
+    if (sourceEnv.isPersonal && sourceEnv.ownerId !== userResult.data._id) {
       return failure(
-        HttpStatus.NOT_FOUND,
-        "project:not_found",
-        "Project not found",
+        HttpStatus.FORBIDDEN,
+        "env:not_owner",
+        "You cannot sync from another user's personal environment",
       );
     }
 
-    const authResult = await requireOrgAdmin(ctx, project.orgId);
-    if (isFailure(authResult)) return authResult;
+    const access = await requireEnvWriteAccess(ctx, args.targetEnvironmentId);
+    if (!access.ok) return access.result;
 
     const sourceSecrets = await ctx.db
       .query("secrets")
@@ -460,7 +425,7 @@ export const syncFromEnvironment = mutation({
           key: secret.key,
           encryptedValue: secret.encryptedValue,
           environmentId: args.targetEnvironmentId,
-          createdBy: authResult.data.user._id,
+          createdBy: access.user._id,
           createdAt: Date.now(),
           updatedAt: Date.now(),
         });
@@ -497,6 +462,8 @@ export const listAllOrgSecrets = query({
         .collect();
 
       for (const env of environments) {
+        if (env.isPersonal) continue;
+
         const secrets = await ctx.db
           .query("secrets")
           .withIndex("by_environment", (q) => q.eq("environmentId", env._id))
