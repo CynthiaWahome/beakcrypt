@@ -1,8 +1,14 @@
+import type { Metadata } from "next";
 import { Suspense } from "react";
 import { Skeleton } from "~/components/ui/skeleton";
 import { Separator } from "~/components/ui/separator";
 import { SidebarTrigger } from "~/components/ui/sidebar";
 import SessionsHandler from "./handler";
+
+export const metadata: Metadata = {
+  title: "Sessions - Beakcrypt",
+  description: "Manage your device sessions for this organization.",
+};
 
 function SessionsSkeleton() {
   return (

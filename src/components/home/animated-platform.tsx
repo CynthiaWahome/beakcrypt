@@ -1,24 +1,37 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useReducer } from "react";
 
 const platforms = ["slack", "discord", "teams", "email"];
 
+type AnimState = { currentIndex: number; isAnimating: boolean };
+type AnimAction = "animate-out" | "animate-in";
+
+function animReducer(state: AnimState, action: AnimAction): AnimState {
+  if (action === "animate-out") return { ...state, isAnimating: true };
+  return {
+    currentIndex: (state.currentIndex + 1) % platforms.length,
+    isAnimating: false,
+  };
+}
+
 export default function AnimatedPlatform() {
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [isAnimating, setIsAnimating] = useState(false);
+  const [{ currentIndex, isAnimating }, dispatch] = useReducer(animReducer, {
+    currentIndex: 0,
+    isAnimating: false,
+  });
 
   useEffect(() => {
+    let timeoutId: NodeJS.Timeout;
     const interval = setInterval(() => {
-      setIsAnimating(true);
-
-      setTimeout(() => {
-        setCurrentIndex((prev) => (prev + 1) % platforms.length);
-        setIsAnimating(false);
-      }, 300);
+      dispatch("animate-out");
+      timeoutId = setTimeout(() => dispatch("animate-in"), 300);
     }, 2500);
 
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(interval);
+      clearTimeout(timeoutId);
+    };
   }, []);
 
   return (

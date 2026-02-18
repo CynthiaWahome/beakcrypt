@@ -73,7 +73,7 @@ export default function AnimatedTerminal() {
     terminalLines.forEach((line, index) => {
       cumulativeDelay += line.delay;
       setTimeout(() => {
-        setVisibleCount(index + 1);
+        setVisibleCount(() => index + 1);
       }, cumulativeDelay);
     });
   });
@@ -104,7 +104,7 @@ export default function AnimatedTerminal() {
       <CardContent className="px-6 pb-6 font-mono text-sm leading-loose min-h-57">
         {terminalLines.map((line, index) => (
           <div
-            key={index}
+            key={line.content}
             className={`text-white/40 transition-all duration-300 ${
               index < visibleCount
                 ? "opacity-100 translate-y-0"

@@ -14,7 +14,7 @@ import {
 } from "~/components/ui/card";
 import Link from "next/link";
 import { useState, useTransition } from "react";
-import { useSession, signOut } from "~/lib/auth-client";
+import { authClient, useSession, signOut } from "~/lib/auth-client";
 import { Separator } from "~/components/ui/separator";
 import { Avatar, AvatarFallback, AvatarImage } from "~/components/ui/avatar";
 import {
@@ -28,7 +28,7 @@ import {
 import { Preloaded, usePreloadedQuery } from "convex/react";
 import AppLoader from "~/components/loader";
 import { getInitials } from "~/lib/utils";
-import { generateKeyPair, storePrivateKey } from "~/lib/crypto";
+import { generateKeyPair, storeKeyPair, storeKeyId } from "~/lib/crypto";
 
 interface InviteContentProps {
   preloadedInvite: Preloaded<typeof api.invites.getInvite>;
@@ -134,11 +134,19 @@ export default function InviteContent({
         if (isSuccess(result)) {
           try {
             const keyPair = await generateKeyPair();
-            await registerKeyMutation({
+            const { data: sessionData } = await authClient.getSession();
+            const sessionToken = sessionData?.session?.token;
+            if (!sessionToken) throw new Error("No session token");
+
+            const keyResult = await registerKeyMutation({
               orgId: result.data._id,
               publicKey: JSON.stringify(keyPair.publicKey),
+              sessionToken,
             });
-            storePrivateKey(result.data._id, keyPair.privateKey);
+            storeKeyPair(result.data._id, keyPair);
+            if (isSuccess(keyResult)) {
+              storeKeyId(result.data._id, keyResult.data._id);
+            }
           } catch {
             console.error(
               "Key registration failed, user will need admin approval later",

@@ -67,6 +67,7 @@ import { useDeviceKeySetup } from "~/hooks/use-device-key-setup";
 import { encryptSecret, decryptSecret } from "~/lib/crypto";
 
 interface ParsedEntry {
+  id: string;
   key: string;
   value: string;
 }
@@ -92,7 +93,7 @@ function parseEnvContent(content: string): ParsedEntry[] {
       value = value.slice(1, -1);
     }
 
-    entries.push({ key, value });
+    entries.push({ id: crypto.randomUUID(), key, value });
   }
 
   return entries;
@@ -306,12 +307,12 @@ function CreateEnvironmentDialog({
 
           {environments.length > 0 && (
             <div className="space-y-2">
-              <label className="text-sm font-medium leading-none">
+              <span className="text-sm font-medium leading-none">
                 Copy secrets from
                 <span className="ml-1 font-normal text-muted-foreground">
                   (optional)
                 </span>
-              </label>
+              </span>
               <div className="grid gap-1.5">
                 {environments.map((env) => (
                   <button
@@ -697,7 +698,7 @@ function EnvironmentSecrets({
     );
   }
 
-  if (keyStatus === "no_private_key") {
+  if (keyStatus === "no_key_pair") {
     if (deviceSetup.status === "registering") {
       return (
         <Empty className="min-h-[40vh]">
@@ -974,10 +975,7 @@ function EnvironmentSecrets({
                 )}
 
                 {addRows.map((row, index) => (
-                  <TableRow
-                    key={`pending-${index}`}
-                    className="bg-emerald-500/5"
-                  >
+                  <TableRow key={row.id} className="bg-emerald-500/5">
                     <TableCell>
                       <Input
                         value={row.key}
@@ -1165,9 +1163,9 @@ function EnvironmentSecrets({
           ) : (
             <>
               <div className="space-y-3">
-                <label className="text-sm font-medium leading-none">
+                <span className="text-sm font-medium leading-none">
                   Source environment
-                </label>
+                </span>
                 <div className="grid gap-1.5">
                   {otherEnvironments.map((env) => (
                     <button

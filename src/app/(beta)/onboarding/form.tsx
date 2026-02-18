@@ -45,9 +45,10 @@ import {
   generateKeyPair,
   generateOrgKey,
   wrapOrgKey,
-  storePrivateKey,
+  storeKeyPair,
+  storeKeyId,
 } from "~/lib/crypto";
-import { getDeviceInfo } from "~/lib/device-info";
+import { authClient } from "~/lib/auth-client";
 
 const initialOrgState: Response<
   Doc<"organizations">,
@@ -104,9 +105,11 @@ export default function OnboardingForm() {
   const isSlugInvalid = shouldValidateSlug && !slugValidation.valid;
   const slugError = isSlugInvalid ? slugValidation.error : null;
 
+  const isOrgCreated = !!orgState.data?._id;
+
   const isSlugTakenQuery = useQuery(
     api.organizations.checkSlug,
-    slugValidation.valid ? { slug: debouncedSlug } : "skip",
+    slugValidation.valid && !isOrgCreated ? { slug: debouncedSlug } : "skip",
   );
 
   const isSlugCheckLoading =
@@ -125,7 +128,6 @@ export default function OnboardingForm() {
   const keySetupStarted = useRef(false);
   const registerKeyMutation = useMutation(api.keys.registerKey);
 
-  const isOrgCreated = !!orgState.data?._id;
   const isInviteSent = !!inviteState.data?._id;
 
   const setupKeys = useCallback(
@@ -138,15 +140,23 @@ export default function OnboardingForm() {
         const orgKey = await generateOrgKey();
         const wrappedKey = await wrapOrgKey(orgKey, keyPair.publicKey);
 
+        const { data: session } = await authClient.getSession();
+        const sessionToken = session?.session?.token;
+        if (!sessionToken) {
+          setKeySetupError("Failed to get session token. Try refreshing.");
+          return;
+        }
+
         const result = await registerKeyMutation({
           orgId,
           publicKey: JSON.stringify(keyPair.publicKey),
           wrappedOrgKey: wrappedKey,
-          deviceInfo: getDeviceInfo(),
+          sessionToken,
         });
 
         if (isSuccess(result)) {
-          storePrivateKey(orgId, keyPair.privateKey);
+          storeKeyPair(orgId, keyPair);
+          storeKeyId(orgId, result.data._id);
           setKeySetupDone(true);
         } else {
           setKeySetupError("Failed to register encryption key.");
@@ -172,20 +182,24 @@ export default function OnboardingForm() {
 
   const activeState = isOrgCreated ? inviteState : orgState;
   const hasError = "error" in activeState && !!activeState.error;
-
-  if (activeState.timestamp !== lastTimestamp) {
-    setLastTimestamp(activeState.timestamp);
-    if (hasError) {
-      setShowError(true);
-    }
-  }
+  const errorTimerRef = useRef<ReturnType<typeof setTimeout>>(null);
 
   useEffect(() => {
-    if (showError) {
-      const timer = setTimeout(() => setShowError(false), 3000);
-      return () => clearTimeout(timer);
+    if (activeState.timestamp !== lastTimestamp) {
+      setLastTimestamp(activeState.timestamp);
+      if (hasError) {
+        setShowError(true);
+        if (errorTimerRef.current) clearTimeout(errorTimerRef.current);
+        errorTimerRef.current = setTimeout(() => setShowError(false), 3000);
+      } else {
+        setShowError(false);
+      }
     }
-  }, [showError]);
+
+    return () => {
+      if (errorTimerRef.current) clearTimeout(errorTimerRef.current);
+    };
+  }, [activeState.timestamp, hasError, lastTimestamp]);
 
   if (isInviteSent || isSkipped) {
     return (
@@ -359,13 +373,16 @@ export default function OnboardingForm() {
                   name.trim().length === 0 ||
                   slug.trim().length === 0 ||
                   isSlugCheckLoading ||
-                  isSlugTaken === true
+                  isSlugTaken === true ||
+                  slug !== debouncedSlug
                 }
               >
-                {orgPending ? (
+                {orgPending ||
+                isSlugCheckLoading ||
+                (slug !== debouncedSlug && slug.length > 0) ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Creating...
+                    {orgPending ? "Creating..." : "Checking..."}
                   </>
                 ) : (
                   "Continue"
@@ -439,12 +456,17 @@ export default function OnboardingForm() {
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-medium leading-none text-zinc-300">
+                <span className="text-sm font-medium leading-none text-zinc-300">
                   Role
-                </label>
+                </span>
                 <div className="grid grid-cols-2 gap-2">
-                  <label className="cursor-pointer">
+                  <label
+                    htmlFor="role-member"
+                    aria-label="Member"
+                    className="cursor-pointer"
+                  >
                     <input
+                      id="role-member"
                       type="radio"
                       name="role"
                       value="member"
@@ -457,8 +479,13 @@ export default function OnboardingForm() {
                       </span>
                     </div>
                   </label>
-                  <label className="cursor-pointer">
+                  <label
+                    htmlFor="role-admin"
+                    aria-label="Admin"
+                    className="cursor-pointer"
+                  >
                     <input
+                      id="role-admin"
                       type="radio"
                       name="role"
                       value="admin"

@@ -1,8 +1,14 @@
+import type { Metadata } from "next";
 import { Suspense } from "react";
 import { Skeleton } from "~/components/ui/skeleton";
 import { Separator } from "~/components/ui/separator";
 import { SidebarTrigger } from "~/components/ui/sidebar";
 import ProjectHandler from "./handler";
+
+export const metadata: Metadata = {
+  title: "Project - Beakcrypt",
+  description: "Manage environment variables for your project.",
+};
 
 function ProjectSkeleton() {
   return (

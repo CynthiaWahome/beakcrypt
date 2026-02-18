@@ -599,7 +599,7 @@ export const RESERVED_SLUGS = [
   "toolkit",
 ] as const;
 
-export type ReservedSlug = (typeof RESERVED_SLUGS)[number];
+type ReservedSlug = (typeof RESERVED_SLUGS)[number];
 
 const RESERVED_SLUG_SET = new Set(RESERVED_SLUGS);
 
@@ -645,7 +645,7 @@ export function validateSlug(slug: string): SlugValidationResult {
     };
   }
 
-  const normalizedSlug = trimmedSlug.toLowerCase();
+  const normalizedSlug = trimmedSlug;
 
   if (normalizedSlug.length < 3) {
     return { valid: false, error: "Slug must be at least 3 characters" };

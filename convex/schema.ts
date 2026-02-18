@@ -101,12 +101,7 @@ export default defineSchema({
     userId: v.string(),
     publicKey: v.string(),
     wrappedOrgKey: v.optional(v.string()),
-    deviceInfo: v.optional(
-      v.object({
-        browser: v.optional(v.string()),
-        os: v.optional(v.string()),
-      }),
-    ),
+    sessionToken: v.string(),
     status: v.union(
       v.literal("pending"),
       v.literal("active"),
@@ -118,5 +113,6 @@ export default defineSchema({
     .index("by_org", ["orgId"])
     .index("by_user", ["userId"])
     .index("by_org_and_user", ["orgId", "userId"])
-    .index("by_org_and_status", ["orgId", "status"]),
+    .index("by_org_and_status", ["orgId", "status"])
+    .index("by_org_user_publicKey", ["orgId", "userId", "publicKey"]),
 });

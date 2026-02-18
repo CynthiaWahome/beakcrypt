@@ -6,8 +6,8 @@ const WIDTHS = [50, 60, 75];
 export default function ProjectListSkeleton() {
   return (
     <>
-      {WIDTHS.map((width, i) => (
-        <SidebarMenuItem key={i}>
+      {WIDTHS.map((width) => (
+        <SidebarMenuItem key={width}>
           <div className="flex h-8 items-center gap-2 rounded-md px-2">
             <Skeleton className="size-4 rounded-md" />
             <Skeleton

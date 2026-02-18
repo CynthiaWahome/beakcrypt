@@ -1,4 +1,4 @@
-export interface ExportedKeyPair {
+interface ExportedKeyPair {
   publicKey: JsonWebKey;
   privateKey: JsonWebKey;
 }
@@ -13,7 +13,7 @@ const AES_ALGORITHM = "AES-GCM";
 const AES_KEY_LENGTH = 256;
 const IV_BYTE_LENGTH = 12;
 
-const PRIVATE_KEY_PREFIX = "beakcrypt_pk_";
+const KEY_PAIR_PREFIX = "beakcrypt_kp_";
 
 export async function generateKeyPair(): Promise<ExportedKeyPair> {
   const keyPair = await crypto.subtle.generateKey(RSA_ALGORITHM, true, [
@@ -144,45 +144,48 @@ export async function decryptSecret(
   return new TextDecoder().decode(decrypted);
 }
 
-export function storePrivateKey(orgId: string, privateKey: JsonWebKey): void {
-  localStorage.setItem(
-    `${PRIVATE_KEY_PREFIX}${orgId}`,
-    JSON.stringify(privateKey),
-  );
+export function storeKeyPair(orgId: string, keyPair: ExportedKeyPair): void {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(`${KEY_PAIR_PREFIX}${orgId}`, JSON.stringify(keyPair));
 }
 
-export function getPrivateKey(orgId: string): JsonWebKey | null {
-  const stored = localStorage.getItem(`${PRIVATE_KEY_PREFIX}${orgId}`);
+export function getKeyPair(orgId: string): ExportedKeyPair | null {
+  if (typeof window === "undefined") return null;
+  const stored = localStorage.getItem(`${KEY_PAIR_PREFIX}${orgId}`);
   if (!stored) return null;
 
   try {
-    return JSON.parse(stored) as JsonWebKey;
+    return JSON.parse(stored) as ExportedKeyPair;
   } catch {
     return null;
   }
 }
 
-export function removePrivateKey(orgId: string): void {
-  localStorage.removeItem(`${PRIVATE_KEY_PREFIX}${orgId}`);
+export function removeKeyPair(orgId: string): void {
+  if (typeof window === "undefined") return;
+  localStorage.removeItem(`${KEY_PAIR_PREFIX}${orgId}`);
 }
 
-export function hasPrivateKey(orgId: string): boolean {
-  return localStorage.getItem(`${PRIVATE_KEY_PREFIX}${orgId}`) !== null;
+export function hasKeyPair(orgId: string): boolean {
+  if (typeof window === "undefined") return false;
+  return localStorage.getItem(`${KEY_PAIR_PREFIX}${orgId}`) !== null;
 }
 
-export function isCurrentDeviceSession(
-  orgId: string,
-  sessionPublicKey: string,
-): boolean {
-  const privateKey = getPrivateKey(orgId);
-  if (!privateKey || !privateKey.n) return false;
+const KEY_ID_PREFIX = "beakcrypt_kid_";
 
-  try {
-    const publicKeyJwk = JSON.parse(sessionPublicKey) as JsonWebKey;
-    return publicKeyJwk.n === privateKey.n;
-  } catch {
-    return false;
-  }
+export function storeKeyId(orgId: string, keyId: string): void {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(`${KEY_ID_PREFIX}${orgId}`, keyId);
+}
+
+export function getKeyId(orgId: string): string | null {
+  if (typeof window === "undefined") return null;
+  return localStorage.getItem(`${KEY_ID_PREFIX}${orgId}`);
+}
+
+export function removeKeyId(orgId: string): void {
+  if (typeof window === "undefined") return;
+  localStorage.removeItem(`${KEY_ID_PREFIX}${orgId}`);
 }
 
 function bufferToBase64(buffer: ArrayBuffer): string {

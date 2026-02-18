@@ -3,14 +3,21 @@
 import { useMutation, useQuery } from "convex/react";
 import { api } from "conv/_generated/api";
 import { isSuccess, isFailure } from "conv/types";
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import type { Id } from "conv/_generated/dataModel";
-import { generateKeyPair, storePrivateKey, hasPrivateKey } from "~/lib/crypto";
-import { getDeviceInfo } from "~/lib/device-info";
+import {
+  generateKeyPair,
+  storeKeyPair,
+  getKeyPair,
+  storeKeyId,
+  getKeyId,
+} from "~/lib/crypto";
+import { authClient } from "~/lib/auth-client";
 
-export type DeviceKeySetupStatus =
+type DeviceKeySetupStatus =
   | "idle"
   | "registering"
+  | "syncing_token"
   | "pending_approval"
   | "done"
   | "error";
@@ -20,22 +27,94 @@ export function useDeviceKeySetup(orgId: Id<"organizations">) {
   const [error, setError] = useState("");
   const [retryCount, setRetryCount] = useState(0);
   const registerKeyMutation = useMutation(api.keys.registerKey);
+  const updateTokenMutation = useMutation(api.keys.updateKeySessionToken);
   const sessionsResult = useQuery(api.keys.listMySessions, { orgId });
   const attemptedRef = useRef(false);
 
-  useEffect(() => {
-    attemptedRef.current = false;
+  const [prevOrgId, setPrevOrgId] = useState(orgId);
+  if (orgId !== prevOrgId) {
+    setPrevOrgId(orgId);
     setStatus("idle");
     setError("");
+    attemptedRef.current = false;
+  }
+
+  const migrationPublicKey = useMemo(() => {
+    const kp = getKeyPair(orgId);
+    const kid = getKeyId(orgId);
+    if (kp && !kid) {
+      return JSON.stringify(kp.publicKey);
+    }
+    return null;
   }, [orgId]);
+
+  const migrationKeyResult = useQuery(
+    api.keys.getMyKey,
+    migrationPublicKey !== null
+      ? { orgId, publicKey: migrationPublicKey }
+      : "skip",
+  );
 
   useEffect(() => {
     let cancelled = false;
 
     if (attemptedRef.current) return;
-    if (hasPrivateKey(orgId)) {
-      setStatus("done");
-      return;
+
+    const existingKeyPair = getKeyPair(orgId);
+    const storedKeyId = getKeyId(orgId);
+
+    if (existingKeyPair && storedKeyId) {
+      attemptedRef.current = true;
+      setStatus("syncing_token");
+
+      (async () => {
+        try {
+          const { data } = await authClient.getSession();
+          const sessionToken = data?.session?.token;
+          if (cancelled) return;
+          if (!sessionToken) {
+            setStatus("done");
+            return;
+          }
+
+          const result = await updateTokenMutation({
+            keyId: storedKeyId as Id<"memberKeys">,
+            sessionToken,
+          });
+
+          if (cancelled) return;
+
+          if (isFailure(result)) {
+            console.error("Failed to sync session token:", result.error);
+          }
+
+          setStatus("done");
+        } catch {
+          if (cancelled) return;
+          console.error("Failed to sync session token");
+          setStatus("done");
+        }
+      })();
+
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    if (existingKeyPair && !storedKeyId) {
+      if (migrationKeyResult === undefined) {
+        return;
+      }
+
+      if (isSuccess(migrationKeyResult) && migrationKeyResult.data !== null) {
+        storeKeyId(orgId, migrationKeyResult.data._id);
+        return;
+      }
+
+      console.warn(
+        "Migration: no backend record found for stored public key; generating a new key pair.",
+        isFailure(migrationKeyResult) ? migrationKeyResult.error : "not found",
+      );
     }
 
     if (sessionsResult === undefined) return;
@@ -54,18 +133,28 @@ export function useDeviceKeySetup(orgId: Id<"organizations">) {
     (async () => {
       try {
         const keyPair = await generateKeyPair();
-        const deviceInfo = getDeviceInfo();
+
+        const { data } = await authClient.getSession();
+        const sessionToken = data?.session?.token;
+        if (cancelled) return;
+        if (!sessionToken) {
+          attemptedRef.current = false;
+          setStatus("error");
+          setError("Failed to get session token. Try refreshing.");
+          return;
+        }
 
         const result = await registerKeyMutation({
           orgId,
           publicKey: JSON.stringify(keyPair.publicKey),
-          deviceInfo,
+          sessionToken,
         });
 
         if (cancelled) return;
 
         if (isSuccess(result)) {
-          storePrivateKey(orgId, keyPair.privateKey);
+          storeKeyPair(orgId, keyPair);
+          storeKeyId(orgId, result.data._id);
           if (result.data.status === "active") {
             setStatus("done");
           } else {
@@ -86,7 +175,14 @@ export function useDeviceKeySetup(orgId: Id<"organizations">) {
     return () => {
       cancelled = true;
     };
-  }, [orgId, sessionsResult, registerKeyMutation, retryCount]);
+  }, [
+    orgId,
+    sessionsResult,
+    registerKeyMutation,
+    updateTokenMutation,
+    migrationKeyResult,
+    retryCount,
+  ]);
 
   const retry = useCallback(() => {
     attemptedRef.current = false;

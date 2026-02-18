@@ -1,20 +1,17 @@
 import { v } from "convex/values";
 import type { Doc } from "./_generated/dataModel";
 import { query, mutation } from "./_generated/server";
+import type { MutationCtx } from "./_generated/server";
 import { Result, success, failure, HttpStatus, isFailure } from "./types";
 import { getAuthUser, requireOrgAdmin, requireOrgMember } from "./authHelpers";
+import { authComponent, createAuth } from "./auth";
 
 export const registerKey = mutation({
   args: {
     orgId: v.id("organizations"),
     publicKey: v.string(),
     wrappedOrgKey: v.optional(v.string()),
-    deviceInfo: v.optional(
-      v.object({
-        browser: v.optional(v.string()),
-        os: v.optional(v.string()),
-      }),
-    ),
+    sessionToken: v.string(),
   },
   handler: async (ctx, args): Promise<Result<Doc<"memberKeys">>> => {
     const userResult = await getAuthUser(ctx);
@@ -37,12 +34,40 @@ export const registerKey = mutation({
     const isOwner = org.ownerId === user._id;
     const status = isOwner && args.wrappedOrgKey ? "active" : "pending";
 
+    const existingMatches = await ctx.db
+      .query("memberKeys")
+      .withIndex("by_org_user_publicKey", (q) =>
+        q
+          .eq("orgId", args.orgId)
+          .eq("userId", user._id)
+          .eq("publicKey", args.publicKey),
+      )
+      .take(2);
+
+    if (existingMatches.length > 1) {
+      console.error(
+        "Duplicate memberKeys detected for org/user/publicKey",
+        args.orgId,
+        user._id,
+        args.publicKey,
+      );
+      return failure(
+        HttpStatus.CONFLICT,
+        "key:duplicate",
+        "A duplicate key record exists; please contact support",
+      );
+    }
+
+    if (existingMatches.length === 1) {
+      return success(existingMatches[0]!);
+    }
+
     const keyId = await ctx.db.insert("memberKeys", {
       orgId: args.orgId,
       userId: user._id,
       publicKey: args.publicKey,
       wrappedOrgKey: isOwner ? args.wrappedOrgKey : undefined,
-      deviceInfo: args.deviceInfo,
+      sessionToken: args.sessionToken,
       status,
       createdAt: Date.now(),
       updatedAt: Date.now(),
@@ -153,6 +178,7 @@ export const revokeKey = mutation({
 export const getMyKey = query({
   args: {
     orgId: v.id("organizations"),
+    publicKey: v.string(),
   },
   handler: async (ctx, args): Promise<Result<Doc<"memberKeys"> | null>> => {
     const userResult = await getAuthUser(ctx);
@@ -161,14 +187,31 @@ export const getMyKey = query({
     const membershipResult = await requireOrgMember(ctx, args.orgId);
     if (isFailure(membershipResult)) return membershipResult;
 
-    const memberKey = await ctx.db
+    const matches = await ctx.db
       .query("memberKeys")
-      .withIndex("by_org_and_user", (q) =>
-        q.eq("orgId", args.orgId).eq("userId", userResult.data._id),
+      .withIndex("by_org_user_publicKey", (q) =>
+        q
+          .eq("orgId", args.orgId)
+          .eq("userId", userResult.data._id)
+          .eq("publicKey", args.publicKey),
       )
-      .first();
+      .take(2);
 
-    return success(memberKey);
+    if (matches.length > 1) {
+      console.error(
+        "Duplicate memberKeys detected for org/user/publicKey",
+        args.orgId,
+        userResult.data._id,
+        args.publicKey,
+      );
+      return failure(
+        HttpStatus.CONFLICT,
+        "key:duplicate",
+        "A duplicate key record exists; please contact support",
+      );
+    }
+
+    return success(matches[0] ?? null);
   },
 });
 
@@ -228,6 +271,40 @@ export const listActiveKeys = query({
       .collect();
 
     return success(activeKeys);
+  },
+});
+
+export const listMemberKeys = query({
+  args: {
+    orgId: v.id("organizations"),
+    userId: v.string(),
+  },
+  handler: async (
+    ctx,
+    args,
+  ): Promise<
+    Result<
+      Pick<Doc<"memberKeys">, "_id" | "status" | "createdAt" | "updatedAt">[]
+    >
+  > => {
+    const authResult = await requireOrgAdmin(ctx, args.orgId);
+    if (isFailure(authResult)) return authResult;
+
+    const keys = await ctx.db
+      .query("memberKeys")
+      .withIndex("by_org_and_user", (q) =>
+        q.eq("orgId", args.orgId).eq("userId", args.userId),
+      )
+      .collect();
+
+    return success(
+      keys.map(({ _id, status, createdAt, updatedAt }) => ({
+        _id,
+        status,
+        createdAt,
+        updatedAt,
+      })),
+    );
   },
 });
 
@@ -368,16 +445,17 @@ export const approveMySession = mutation({
   },
 });
 
-export const revokeMySession = mutation({
+export const updateKeySessionToken = mutation({
   args: {
     keyId: v.id("memberKeys"),
+    sessionToken: v.string(),
   },
-  handler: async (ctx, args): Promise<Result<Doc<"memberKeys">>> => {
+  handler: async (ctx, args): Promise<Result<null>> => {
     const userResult = await getAuthUser(ctx);
     if (isFailure(userResult)) return userResult;
 
-    const memberKey = await ctx.db.get(args.keyId);
-    if (!memberKey) {
+    const key = await ctx.db.get(args.keyId);
+    if (!key) {
       return failure(
         HttpStatus.NOT_FOUND,
         "key:not_found",
@@ -385,40 +463,132 @@ export const revokeMySession = mutation({
       );
     }
 
-    const membershipResult = await requireOrgMember(ctx, memberKey.orgId);
+    const membershipResult = await requireOrgMember(ctx, key.orgId);
     if (isFailure(membershipResult)) return membershipResult;
 
-    if (memberKey.userId !== userResult.data._id) {
+    if (key.userId !== userResult.data._id) {
       return failure(
         HttpStatus.FORBIDDEN,
         "key:not_owner",
-        "You can only revoke your own device sessions",
+        "You can only update your own keys",
       );
     }
 
-    if (memberKey.status === "revoked") {
-      return failure(
-        HttpStatus.BAD_REQUEST,
-        "key:already_revoked",
-        "Session is already revoked",
-      );
+    if (key.sessionToken === args.sessionToken) {
+      return success(null);
     }
 
-    await ctx.db.patch(args.keyId, {
-      status: "revoked",
-      wrappedOrgKey: undefined,
+    await ctx.db.patch(key._id, {
+      sessionToken: args.sessionToken,
       updatedAt: Date.now(),
     });
 
-    const updated = await ctx.db.get(args.keyId);
-    if (!updated) {
+    return success(null);
+  },
+});
+
+async function validateMyKey(
+  ctx: MutationCtx,
+  userId: string,
+  keyId: Doc<"memberKeys">["_id"],
+): Promise<Result<Doc<"memberKeys">>> {
+  const key = await ctx.db.get(keyId);
+  if (!key) {
+    return failure(
+      HttpStatus.NOT_FOUND,
+      "key:not_found",
+      "Key record not found",
+    );
+  }
+
+  const membershipResult = await requireOrgMember(ctx, key.orgId);
+  if (isFailure(membershipResult)) return membershipResult;
+
+  if (key.userId !== userId) {
+    return failure(
+      HttpStatus.FORBIDDEN,
+      "key:not_owner",
+      "You can only manage your own device keys",
+    );
+  }
+
+  return success(key);
+}
+
+export const revokeMyKey = mutation({
+  args: {
+    keyId: v.id("memberKeys"),
+  },
+  handler: async (ctx, args): Promise<Result<null>> => {
+    const userResult = await getAuthUser(ctx);
+    if (isFailure(userResult)) return userResult;
+
+    const keyResult = await validateMyKey(ctx, userResult.data._id, args.keyId);
+    if (isFailure(keyResult)) return keyResult;
+
+    await ctx.db.delete(args.keyId);
+    return success(null);
+  },
+});
+
+export const revokeMyAuthSession = mutation({
+  args: {
+    sessionToken: v.string(),
+  },
+  handler: async (ctx, args): Promise<Result<null>> => {
+    const userResult = await getAuthUser(ctx);
+    if (isFailure(userResult)) return userResult;
+
+    try {
+      const { auth, headers } = await authComponent.getAuth(createAuth, ctx);
+
+      await auth.api.revokeSession({
+        body: { token: args.sessionToken },
+        headers,
+      });
+    } catch (e) {
+      console.error("Failed to revoke Better Auth session:", e);
       return failure(
         HttpStatus.INTERNAL_SERVER_ERROR,
-        "key:revoke_failed",
-        "Failed to revoke session",
+        "session:revoke_failed",
+        "Failed to revoke login session",
       );
     }
 
-    return success(updated);
+    return success(null);
+  },
+});
+
+export const revokeMySessionAndKey = mutation({
+  args: {
+    keyId: v.id("memberKeys"),
+  },
+  handler: async (ctx, args): Promise<Result<null>> => {
+    const userResult = await getAuthUser(ctx);
+    if (isFailure(userResult)) return userResult;
+
+    const keyResult = await validateMyKey(ctx, userResult.data._id, args.keyId);
+    if (isFailure(keyResult)) return keyResult;
+
+    const key = keyResult.data;
+
+    try {
+      const { auth, headers } = await authComponent.getAuth(createAuth, ctx);
+
+      await auth.api.revokeSession({
+        body: { token: key.sessionToken },
+        headers,
+      });
+    } catch (e) {
+      console.error("Failed to revoke Better Auth session:", e);
+      return failure(
+        HttpStatus.INTERNAL_SERVER_ERROR,
+        "session:revoke_failed",
+        "Failed to revoke login session",
+      );
+    }
+
+    await ctx.db.delete(args.keyId);
+    return success(null);
   },
 });
