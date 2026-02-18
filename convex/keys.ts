@@ -113,6 +113,21 @@ export const registerKey = mutation({
 
         const adminEmails: string[] = [];
         for (const m of adminMembers) {
+          const activeKey = await ctx.db
+            .query("memberKeys")
+            .withIndex("by_org_and_user", (q) =>
+              q.eq("orgId", args.orgId).eq("userId", m.userId),
+            )
+            .filter((q) =>
+              q.and(
+                q.eq(q.field("status"), "active"),
+                q.neq(q.field("wrappedOrgKey"), undefined),
+              ),
+            )
+            .first();
+
+          if (!activeKey) continue;
+
           const adminUser = await authComponent
             .getAnyUserById(ctx, m.userId)
             .catch(() => null);

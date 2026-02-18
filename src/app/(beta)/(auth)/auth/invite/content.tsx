@@ -55,6 +55,7 @@ export default function InviteContent({
   const [actionType, setActionType] = useState<"accept" | "decline" | null>(
     null,
   );
+  const [accepted, setAccepted] = useState(false);
 
   const [isSignOutPending, setIsSignOutPending] = useState(false);
 
@@ -107,6 +108,10 @@ export default function InviteContent({
     );
   }
 
+  if (accepted) {
+    return <AppLoader />;
+  }
+
   if (!invite || !organization) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center bg-black text-center p-4">
@@ -153,6 +158,7 @@ export default function InviteContent({
             );
           }
           router.push(`/${result.data.slug}`);
+          setAccepted(true);
         } else {
           console.error("Failed to accept invite:", result.error);
           setActionType(null);
