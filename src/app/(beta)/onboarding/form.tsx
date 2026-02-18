@@ -46,6 +46,7 @@ import {
   generateOrgKey,
   wrapOrgKey,
   storeKeyPair,
+  storeKeyId,
 } from "~/lib/crypto";
 import { authClient } from "~/lib/auth-client";
 
@@ -104,9 +105,11 @@ export default function OnboardingForm() {
   const isSlugInvalid = shouldValidateSlug && !slugValidation.valid;
   const slugError = isSlugInvalid ? slugValidation.error : null;
 
+  const isOrgCreated = !!orgState.data?._id;
+
   const isSlugTakenQuery = useQuery(
     api.organizations.checkSlug,
-    slugValidation.valid ? { slug: debouncedSlug } : "skip",
+    slugValidation.valid && !isOrgCreated ? { slug: debouncedSlug } : "skip",
   );
 
   const isSlugCheckLoading =
@@ -125,7 +128,6 @@ export default function OnboardingForm() {
   const keySetupStarted = useRef(false);
   const registerKeyMutation = useMutation(api.keys.registerKey);
 
-  const isOrgCreated = !!orgState.data?._id;
   const isInviteSent = !!inviteState.data?._id;
 
   const setupKeys = useCallback(
@@ -154,6 +156,7 @@ export default function OnboardingForm() {
 
         if (isSuccess(result)) {
           storeKeyPair(orgId, keyPair);
+          storeKeyId(orgId, result.data._id);
           setKeySetupDone(true);
         } else {
           setKeySetupError("Failed to register encryption key.");

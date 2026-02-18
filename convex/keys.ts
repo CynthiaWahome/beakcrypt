@@ -232,6 +232,26 @@ export const listActiveKeys = query({
   },
 });
 
+export const listMemberKeys = query({
+  args: {
+    orgId: v.id("organizations"),
+    userId: v.string(),
+  },
+  handler: async (ctx, args): Promise<Result<Doc<"memberKeys">[]>> => {
+    const authResult = await requireOrgAdmin(ctx, args.orgId);
+    if (isFailure(authResult)) return authResult;
+
+    const keys = await ctx.db
+      .query("memberKeys")
+      .withIndex("by_org_and_user", (q) =>
+        q.eq("orgId", args.orgId).eq("userId", args.userId),
+      )
+      .collect();
+
+    return success(keys);
+  },
+});
+
 export const rotateOrgKey = mutation({
   args: {
     orgId: v.id("organizations"),
@@ -371,32 +391,30 @@ export const approveMySession = mutation({
 
 export const updateKeySessionToken = mutation({
   args: {
-    orgId: v.id("organizations"),
-    publicKey: v.string(),
+    keyId: v.id("memberKeys"),
     sessionToken: v.string(),
   },
   handler: async (ctx, args): Promise<Result<null>> => {
     const userResult = await getAuthUser(ctx);
     if (isFailure(userResult)) return userResult;
 
-    const membershipResult = await requireOrgMember(ctx, args.orgId);
-    if (isFailure(membershipResult)) return membershipResult;
-
-    const key = await ctx.db
-      .query("memberKeys")
-      .withIndex("by_org_user_publicKey", (q) =>
-        q
-          .eq("orgId", args.orgId)
-          .eq("userId", userResult.data._id)
-          .eq("publicKey", args.publicKey),
-      )
-      .unique();
-
+    const key = await ctx.db.get(args.keyId);
     if (!key) {
       return failure(
         HttpStatus.NOT_FOUND,
         "key:not_found",
         "Key record not found",
+      );
+    }
+
+    const membershipResult = await requireOrgMember(ctx, key.orgId);
+    if (isFailure(membershipResult)) return membershipResult;
+
+    if (key.userId !== userResult.data._id) {
+      return failure(
+        HttpStatus.FORBIDDEN,
+        "key:not_owner",
+        "You can only update your own keys",
       );
     }
 

@@ -196,6 +196,7 @@ export default function TeamsContent({
                   item={item}
                   isOwner={item.member.userId === organization.ownerId}
                   canManage={isOrgAdmin}
+                  orgId={organization._id}
                 />
               ))}
             </div>
@@ -353,10 +354,12 @@ function MemberRow({
   item,
   isOwner,
   canManage,
+  orgId,
 }: {
   item: MemberItem;
   isOwner: boolean;
   canManage: boolean;
+  orgId: Id<"organizations">;
 }) {
   const { member, user } = item;
   const displayName = user?.name ?? "Unknown";
@@ -368,6 +371,7 @@ function MemberRow({
 
   const [isPending, startTransition] = useTransition();
   const [confirmRemove, setConfirmRemove] = useState(false);
+  const [manageKeysOpen, setManageKeysOpen] = useState(false);
   const [error, setError] = useState("");
 
   const handleRoleChange = (role: "admin" | "member") => {
@@ -461,6 +465,11 @@ function MemberRow({
                   </DropdownMenuItem>
                 )}
                 <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => setManageKeysOpen(true)}>
+                  <KeyRound />
+                  Manage Keys
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
                 <DropdownMenuItem
                   className="text-destructive focus:text-destructive"
                   onClick={() => setConfirmRemove(true)}
@@ -520,6 +529,14 @@ function MemberRow({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ManageKeysDialog
+        open={manageKeysOpen}
+        onOpenChange={setManageKeysOpen}
+        orgId={orgId}
+        userId={member.userId}
+        displayName={displayName}
+      />
     </>
   );
 }
@@ -846,5 +863,218 @@ function PendingKeyRow({
       </div>
       {error && <p className="mt-2 text-sm text-red-400">{error}</p>}
     </>
+  );
+}
+
+function ManageKeysDialog({
+  open,
+  onOpenChange,
+  orgId,
+  userId,
+  displayName,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  orgId: Id<"organizations">;
+  userId: string;
+  displayName: string;
+}) {
+  const keysResult = useQuery(
+    api.keys.listMemberKeys,
+    open ? { orgId, userId } : "skip",
+  );
+  const revokeKeyMutation = useMutation(api.keys.revokeKey);
+  const [isPending, startTransition] = useTransition();
+  const [revokingKeyId, setRevokingKeyId] = useState<Id<"memberKeys"> | null>(
+    null,
+  );
+  const [error, setError] = useState("");
+
+  const keys =
+    keysResult && isSuccess(keysResult) ? keysResult.data : [];
+  const keysError =
+    keysResult && isFailure(keysResult) ? keysResult.error : "";
+  const loading = keysResult === undefined;
+
+  const activeKeys = keys.filter((k) => k.status === "active");
+  const pendingKeys = keys.filter((k) => k.status === "pending");
+  const revokedKeys = keys.filter((k) => k.status === "revoked");
+
+  const handleRevoke = (keyId: Id<"memberKeys">) => {
+    setError("");
+    setRevokingKeyId(keyId);
+    startTransition(async () => {
+      try {
+        const result = await revokeKeyMutation({ keyId });
+        if (isFailure(result)) {
+          setError(result.error);
+          return;
+        }
+        setRevokingKeyId(null);
+      } catch {
+        setError("Something went wrong.");
+      } finally {
+        setRevokingKeyId(null);
+      }
+    });
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Encryption Keys</DialogTitle>
+          <DialogDescription>
+            Manage encryption keys for{" "}
+            <span className="font-medium text-foreground">{displayName}</span>.
+            Revoking a key removes their ability to decrypt secrets on that
+            device.
+          </DialogDescription>
+        </DialogHeader>
+
+        {keysError && (
+          <p className="text-sm text-red-400">{keysError}</p>
+        )}
+
+        {error && (
+          <p className="text-sm text-red-400 animate-in fade-in slide-in-from-top-1">
+            {error}
+          </p>
+        )}
+
+        <div className="flex flex-col gap-2 max-h-[40vh] overflow-y-auto">
+          {loading ? (
+            <div className="flex flex-col gap-2">
+              {Array.from({ length: 2 }).map((_, i) => (
+                <div
+                  key={i}
+                  className="h-14 rounded-lg border animate-pulse bg-muted/30"
+                />
+              ))}
+            </div>
+          ) : keys.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-4 text-center">
+              No encryption keys registered for this member.
+            </p>
+          ) : (
+            <>
+              {activeKeys.map((key) => (
+                <KeyRow
+                  key={key._id}
+                  memberKey={key}
+                  onRevoke={handleRevoke}
+                  isRevoking={isPending && revokingKeyId === key._id}
+                />
+              ))}
+              {pendingKeys.map((key) => (
+                <KeyRow
+                  key={key._id}
+                  memberKey={key}
+                  onRevoke={handleRevoke}
+                  isRevoking={isPending && revokingKeyId === key._id}
+                />
+              ))}
+              {revokedKeys.map((key) => (
+                <KeyRow
+                  key={key._id}
+                  memberKey={key}
+                  onRevoke={handleRevoke}
+                  isRevoking={false}
+                />
+              ))}
+            </>
+          )}
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Done
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function KeyRow({
+  memberKey,
+  onRevoke,
+  isRevoking,
+}: {
+  memberKey: Doc<"memberKeys">;
+  onRevoke: (keyId: Id<"memberKeys">) => void;
+  isRevoking: boolean;
+}) {
+  const isActive = memberKey.status === "active";
+  const isPendingApproval = memberKey.status === "pending";
+  const isRevoked = memberKey.status === "revoked";
+
+  const createdAt = new Date(memberKey.createdAt ?? Date.now()).toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+
+  return (
+    <div
+      className={`flex items-center justify-between rounded-lg border p-3 ${
+        isRevoked ? "opacity-50" : ""
+      }`}
+    >
+      <div className="flex items-center gap-3">
+        <div
+          className={`flex size-8 items-center justify-center rounded-full ${
+            isActive
+              ? "bg-emerald-500/10"
+              : isPendingApproval
+                ? "bg-amber-500/10"
+                : "bg-muted"
+          }`}
+        >
+          <KeyRound
+            className={`size-3.5 ${
+              isActive
+                ? "text-emerald-400"
+                : isPendingApproval
+                  ? "text-amber-400"
+                  : "text-muted-foreground"
+            }`}
+          />
+        </div>
+        <div>
+          <div className="flex items-center gap-2">
+            <Badge
+              variant="secondary"
+              className={`gap-1 text-[10px] capitalize ${
+                isActive
+                  ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+                  : ""
+              }`}
+            >
+              {memberKey.status}
+            </Badge>
+          </div>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            <Clock className="inline size-3 mr-1" />
+            Registered {createdAt}
+          </p>
+        </div>
+      </div>
+      {!isRevoked && (
+        <Button
+          size="sm"
+          variant="ghost"
+          className="text-destructive hover:text-destructive"
+          onClick={() => onRevoke(memberKey._id)}
+          disabled={isRevoking}
+        >
+          {isRevoking ? (
+            <Loader2 className="size-3.5 animate-spin" />
+          ) : (
+            <Trash2 className="size-3.5" />
+          )}
+        </Button>
+      )}
+    </div>
   );
 }

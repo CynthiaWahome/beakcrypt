@@ -5,7 +5,7 @@ import { api } from "conv/_generated/api";
 import { isSuccess, isFailure } from "conv/types";
 import { useState, useEffect, useRef, useCallback } from "react";
 import type { Id } from "conv/_generated/dataModel";
-import { generateKeyPair, storeKeyPair, hasKeyPair, getKeyPair } from "~/lib/crypto";
+import { generateKeyPair, storeKeyPair, getKeyPair, storeKeyId, getKeyId } from "~/lib/crypto";
 import { authClient } from "~/lib/auth-client";
 
 type DeviceKeySetupStatus =
@@ -39,7 +39,8 @@ export function useDeviceKeySetup(orgId: Id<"organizations">) {
     if (attemptedRef.current) return;
 
     const existingKeyPair = getKeyPair(orgId);
-    if (existingKeyPair) {
+    const storedKeyId = getKeyId(orgId);
+    if (existingKeyPair && storedKeyId) {
       attemptedRef.current = true;
       setStatus("syncing_token");
 
@@ -54,8 +55,7 @@ export function useDeviceKeySetup(orgId: Id<"organizations">) {
           }
 
           const result = await updateTokenMutation({
-            orgId,
-            publicKey: JSON.stringify(existingKeyPair.publicKey),
+            keyId: storedKeyId as Id<"memberKeys">,
             sessionToken,
           });
 
@@ -114,6 +114,7 @@ export function useDeviceKeySetup(orgId: Id<"organizations">) {
 
         if (isSuccess(result)) {
           storeKeyPair(orgId, keyPair);
+          storeKeyId(orgId, result.data._id);
           if (result.data.status === "active") {
             setStatus("done");
           } else {

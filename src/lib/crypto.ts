@@ -145,10 +145,12 @@ export async function decryptSecret(
 }
 
 export function storeKeyPair(orgId: string, keyPair: ExportedKeyPair): void {
+  if (typeof window === "undefined") return;
   localStorage.setItem(`${KEY_PAIR_PREFIX}${orgId}`, JSON.stringify(keyPair));
 }
 
 export function getKeyPair(orgId: string): ExportedKeyPair | null {
+  if (typeof window === "undefined") return null;
   const stored = localStorage.getItem(`${KEY_PAIR_PREFIX}${orgId}`);
   if (!stored) return null;
 
@@ -160,11 +162,30 @@ export function getKeyPair(orgId: string): ExportedKeyPair | null {
 }
 
 export function removeKeyPair(orgId: string): void {
+  if (typeof window === "undefined") return;
   localStorage.removeItem(`${KEY_PAIR_PREFIX}${orgId}`);
 }
 
 export function hasKeyPair(orgId: string): boolean {
+  if (typeof window === "undefined") return false;
   return localStorage.getItem(`${KEY_PAIR_PREFIX}${orgId}`) !== null;
+}
+
+const KEY_ID_PREFIX = "beakcrypt_kid_";
+
+export function storeKeyId(orgId: string, keyId: string): void {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(`${KEY_ID_PREFIX}${orgId}`, keyId);
+}
+
+export function getKeyId(orgId: string): string | null {
+  if (typeof window === "undefined") return null;
+  return localStorage.getItem(`${KEY_ID_PREFIX}${orgId}`);
+}
+
+export function removeKeyId(orgId: string): void {
+  if (typeof window === "undefined") return;
+  localStorage.removeItem(`${KEY_ID_PREFIX}${orgId}`);
 }
 
 function bufferToBase64(buffer: ArrayBuffer): string {

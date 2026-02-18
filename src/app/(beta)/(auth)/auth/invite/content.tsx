@@ -28,7 +28,7 @@ import {
 import { Preloaded, usePreloadedQuery } from "convex/react";
 import AppLoader from "~/components/loader";
 import { getInitials } from "~/lib/utils";
-import { generateKeyPair, storeKeyPair } from "~/lib/crypto";
+import { generateKeyPair, storeKeyPair, storeKeyId } from "~/lib/crypto";
 
 interface InviteContentProps {
   preloadedInvite: Preloaded<typeof api.invites.getInvite>;
@@ -138,12 +138,15 @@ export default function InviteContent({
             const sessionToken = sessionData?.session?.token;
             if (!sessionToken) throw new Error("No session token");
 
-            await registerKeyMutation({
+            const keyResult = await registerKeyMutation({
               orgId: result.data._id,
               publicKey: JSON.stringify(keyPair.publicKey),
               sessionToken,
             });
             storeKeyPair(result.data._id, keyPair);
+            if (isSuccess(keyResult)) {
+              storeKeyId(result.data._id, keyResult.data._id);
+            }
           } catch {
             console.error(
               "Key registration failed, user will need admin approval later",
