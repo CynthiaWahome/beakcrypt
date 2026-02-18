@@ -29,18 +29,18 @@ export default async function TeamsHandler({
     return notFound();
   }
 
-  const preloadedMembers = await preloadAuthQuery(api.members.list, {
-    orgId: organization.data._id,
-  });
-
-  const preloadedInvites = await preloadAuthQuery(api.invites.listByOrg, {
-    orgId: organization.data._id,
-  });
-
-  const preloadedMyMembership = await preloadAuthQuery(
-    api.members.getMyMembership,
-    { orgId: organization.data._id },
-  );
+  const [preloadedMembers, preloadedInvites, preloadedMyMembership] =
+    await Promise.all([
+      preloadAuthQuery(api.members.list, {
+        orgId: organization.data._id,
+      }),
+      preloadAuthQuery(api.invites.listByOrg, {
+        orgId: organization.data._id,
+      }),
+      preloadAuthQuery(api.members.getMyMembership, {
+        orgId: organization.data._id,
+      }),
+    ]);
 
   return (
     <TeamsContent

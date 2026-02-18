@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { Suspense } from "react";
 import { Skeleton } from "~/components/ui/skeleton";
 import { Separator } from "~/components/ui/separator";
@@ -5,6 +6,11 @@ import { SidebarTrigger } from "~/components/ui/sidebar";
 import { Button } from "~/components/ui/button";
 import { Mail } from "lucide-react";
 import TeamsHandler from "./handler";
+
+export const metadata: Metadata = {
+  title: "Team - Beakcrypt",
+  description: "Manage members and invitations for your organization.",
+};
 
 function TeamsSkeleton() {
   return (

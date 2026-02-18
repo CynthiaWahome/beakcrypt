@@ -7,7 +7,7 @@ import { useState, useEffect, useRef } from "react";
 import type { Id } from "conv/_generated/dataModel";
 import { unwrapOrgKey, getKeyPair } from "~/lib/crypto";
 
-export type OrgKeyStatus =
+type OrgKeyStatus =
   | "loading"
   | "ready"
   | "pending_approval"

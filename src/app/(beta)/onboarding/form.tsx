@@ -179,20 +179,16 @@ export default function OnboardingForm() {
 
   const activeState = isOrgCreated ? inviteState : orgState;
   const hasError = "error" in activeState && !!activeState.error;
+  const errorTimerRef = useRef<ReturnType<typeof setTimeout>>(null);
 
   if (activeState.timestamp !== lastTimestamp) {
     setLastTimestamp(activeState.timestamp);
     if (hasError) {
       setShowError(true);
+      if (errorTimerRef.current) clearTimeout(errorTimerRef.current);
+      errorTimerRef.current = setTimeout(() => setShowError(false), 3000);
     }
   }
-
-  useEffect(() => {
-    if (showError) {
-      const timer = setTimeout(() => setShowError(false), 3000);
-      return () => clearTimeout(timer);
-    }
-  }, [showError]);
 
   if (isInviteSent || isSkipped) {
     return (
@@ -366,13 +362,16 @@ export default function OnboardingForm() {
                   name.trim().length === 0 ||
                   slug.trim().length === 0 ||
                   isSlugCheckLoading ||
-                  isSlugTaken === true
+                  isSlugTaken === true ||
+                  slug !== debouncedSlug
                 }
               >
-                {orgPending ? (
+                {orgPending ||
+                isSlugCheckLoading ||
+                (slug !== debouncedSlug && slug.length > 0) ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Creating...
+                    {orgPending ? "Creating..." : "Checking..."}
                   </>
                 ) : (
                   "Continue"
@@ -446,12 +445,17 @@ export default function OnboardingForm() {
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-medium leading-none text-zinc-300">
+                <span className="text-sm font-medium leading-none text-zinc-300">
                   Role
-                </label>
+                </span>
                 <div className="grid grid-cols-2 gap-2">
-                  <label className="cursor-pointer">
+                  <label
+                    htmlFor="role-member"
+                    aria-label="Member"
+                    className="cursor-pointer"
+                  >
                     <input
+                      id="role-member"
                       type="radio"
                       name="role"
                       value="member"
@@ -464,8 +468,13 @@ export default function OnboardingForm() {
                       </span>
                     </div>
                   </label>
-                  <label className="cursor-pointer">
+                  <label
+                    htmlFor="role-admin"
+                    aria-label="Admin"
+                    className="cursor-pointer"
+                  >
                     <input
+                      id="role-admin"
                       type="radio"
                       name="role"
                       value="admin"

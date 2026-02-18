@@ -65,12 +65,17 @@ export default function AnimatedTerminal() {
     terminalLines.forEach((line, index) => {
       cumulativeDelay += line.delay;
       setTimeout(() => {
-        setVisibleCount(index + 1);
+        setVisibleCount(() => index + 1);
       }, cumulativeDelay);
     });
 
     setTimeout(() => {
       setShowSuccess(true);
+      confettiRef.current?.fire({
+        particleCount: 100,
+        spread: 70,
+        origin: { y: 0.6 },
+      });
     }, cumulativeDelay + 500);
   });
 
@@ -87,16 +92,6 @@ export default function AnimatedTerminal() {
 
     return () => clearInterval(interval);
   }, []);
-
-  useEffect(() => {
-    if (showSuccess) {
-      confettiRef.current?.fire({
-        particleCount: 100,
-        spread: 70,
-        origin: { y: 0.6 },
-      });
-    }
-  }, [showSuccess]);
 
   return (
     <div className="overflow-hidden rounded-lg border border-white/10 bg-[#0c0c0f] w-full max-w-3xl">
@@ -123,7 +118,7 @@ export default function AnimatedTerminal() {
         <div className="mt-4 space-y-1.5 text-white/50">
           {terminalLines.map((line, index) => (
             <div
-              key={index}
+              key={line.content}
               className={`transition-all duration-300 ${
                 index < visibleCount
                   ? "opacity-100 translate-y-0"

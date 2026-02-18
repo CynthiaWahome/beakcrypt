@@ -26,7 +26,13 @@ import type { Id } from "conv/_generated/dataModel";
 import type { Doc } from "conv/_generated/dataModel";
 import type { Response } from "~/types/response";
 import { createProject } from "./actions";
-import { useActionState, useEffect, useState, useTransition } from "react";
+import {
+  useActionState,
+  useEffect,
+  useRef,
+  useState,
+  useTransition,
+} from "react";
 import { useRouter, useParams } from "next/navigation";
 import { useAction } from "convex/react";
 import { api } from "conv/_generated/api";
@@ -97,26 +103,23 @@ export default function CreateProjectDialog({
   const hasError = "error" in state && !!state.error;
   const hasSuccess = "data" in state && !!state.data;
 
+  const errorTimerRef = useRef<ReturnType<typeof setTimeout>>(null);
+
   if (state.timestamp !== lastTimestamp) {
     setLastTimestamp(state.timestamp);
     if (hasError) {
       setShowError(true);
+      if (errorTimerRef.current) clearTimeout(errorTimerRef.current);
+      errorTimerRef.current = setTimeout(() => setShowError(false), 3000);
     }
   }
 
-  useEffect(() => {
-    if (showError) {
-      const timer = setTimeout(() => setShowError(false), 3000);
-      return () => clearTimeout(timer);
-    }
-  }, [showError]);
-
-  useEffect(() => {
-    if (hasSuccess && state.data) {
-      onOpenChange(false);
-      router.push(`/${slug}/${state.data.name}`);
-    }
-  }, [hasSuccess, state.data, slug, router, onOpenChange]);
+  const navigatedRef = useRef(false);
+  if (hasSuccess && state.data && !navigatedRef.current) {
+    navigatedRef.current = true;
+    onOpenChange(false);
+    router.push(`/${slug}/${state.data.name}`);
+  }
 
   useEffect(() => {
     if (mode === "github" && !reposLoaded) {

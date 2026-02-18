@@ -49,8 +49,8 @@ interface AuthSession {
   userId: string;
   userAgent?: string | null;
   ipAddress?: string | null;
-  createdAt: Date;
-  expiresAt: Date;
+  createdAt: Date | string;
+  expiresAt: Date | string;
 }
 
 interface UnifiedSession {
@@ -134,10 +134,12 @@ function buildUnifiedSessions(
   unified.sort((a, b) => {
     if (a.isCurrentSession) return -1;
     if (b.isCurrentSession) return 1;
-    const dateA =
-      a.authSession?.createdAt?.getTime() ?? a.memberKey?.createdAt ?? 0;
-    const dateB =
-      b.authSession?.createdAt?.getTime() ?? b.memberKey?.createdAt ?? 0;
+    const dateA = a.authSession?.createdAt
+      ? new Date(a.authSession.createdAt).getTime()
+      : (a.memberKey?.createdAt ?? 0);
+    const dateB = b.authSession?.createdAt
+      ? new Date(b.authSession.createdAt).getTime()
+      : (b.memberKey?.createdAt ?? 0);
     return dateB - dateA;
   });
 
@@ -153,21 +155,19 @@ export default function SessionsContent({ organization }: Props) {
   const [authSessions, setAuthSessions] = useState<AuthSession[] | null>(null);
   const [authError, setAuthError] = useState("");
 
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const result = await authClient.listSessions();
-        if (!cancelled && result.data) {
-          setAuthSessions(result.data);
-        }
-      } catch {
-        if (!cancelled) setAuthError("Failed to load login sessions.");
+  const fetchSessions = async () => {
+    try {
+      const result = await authClient.listSessions();
+      if (result.data) {
+        setAuthSessions(result.data);
       }
-    })();
-    return () => {
-      cancelled = true;
-    };
+    } catch {
+      setAuthError("Failed to load login sessions.");
+    }
+  };
+
+  useEffect(() => {
+    fetchSessions();
   }, []);
 
   const memberKeys =
@@ -232,6 +232,7 @@ export default function SessionsContent({ organization }: Props) {
                 unified={s}
                 orgKey={orgKey}
                 orgId={organization._id}
+                onRefreshSessions={fetchSessions}
               />
             ))}
           </div>
@@ -244,11 +245,12 @@ export default function SessionsContent({ organization }: Props) {
 function SessionRow({
   unified,
   orgKey,
-  orgId,
+  onRefreshSessions,
 }: {
   unified: UnifiedSession;
   orgKey: string | null;
   orgId: Doc<"organizations">["_id"];
+  onRefreshSessions: () => Promise<void>;
 }) {
   const approveMutation = useMutation(api.keys.approveMySession);
   const revokeMutation = useMutation(api.keys.revokeMySession);
@@ -321,15 +323,20 @@ function SessionRow({
     setActionType("revoke");
     startTransition(async () => {
       try {
+        let result;
         if (memberKey) {
-          const result = await revokeMutation({ keyId: memberKey._id });
-          if (isFailure(result)) {
-            setError(result.error);
-            return;
-          }
+          result = await revokeMutation({ keyId: memberKey._id });
+        } else if (authSession) {
+          result = await revokeMutation({ sessionToken: authSession.token });
+        }
+
+        if (result && isFailure(result)) {
+          setError(result.error);
+          return;
         }
 
         setConfirmRevoke(false);
+        await onRefreshSessions();
 
         if (isCurrentSession) {
           router.push("/auth");

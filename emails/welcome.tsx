@@ -90,5 +90,3 @@ export const WelcomeEmail = ({ email }: WelcomeEmailProps) => {
 WelcomeEmail.PreviewProps = {
   email: "user@acme.com",
 } as WelcomeEmailProps;
-
-export default WelcomeEmail;

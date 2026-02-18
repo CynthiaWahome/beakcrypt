@@ -8,7 +8,7 @@ import type { Id } from "conv/_generated/dataModel";
 import { generateKeyPair, storeKeyPair, hasKeyPair } from "~/lib/crypto";
 import { authClient } from "~/lib/auth-client";
 
-export type DeviceKeySetupStatus =
+type DeviceKeySetupStatus =
   | "idle"
   | "registering"
   | "pending_approval"

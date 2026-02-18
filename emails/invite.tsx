@@ -109,5 +109,3 @@ InviteUserEmail.PreviewProps = {
   inviteLink: "https://beakcrypt.com/auth/invite?token=123",
   invitedByEmail: "admin@acme.com",
 } as InviteUserEmailProps;
-
-export default InviteUserEmail;

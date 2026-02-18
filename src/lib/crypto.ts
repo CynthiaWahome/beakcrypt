@@ -1,4 +1,4 @@
-export interface ExportedKeyPair {
+interface ExportedKeyPair {
   publicKey: JsonWebKey;
   privateKey: JsonWebKey;
 }

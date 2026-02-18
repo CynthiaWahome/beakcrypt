@@ -1,9 +1,16 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import WaitlistForm from "./form";
 import { Github } from "lucide-react";
 import AnimatedTerminal from "./terminal";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
+
+export const metadata: Metadata = {
+  title: "Join the Waitlist - Beakcrypt",
+  description:
+    "Be first to join the vault. The open-source standard for managing and sharing environment variables securely.",
+};
 
 export default function WaitlistPage() {
   return (

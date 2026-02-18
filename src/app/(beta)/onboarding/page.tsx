@@ -1,4 +1,10 @@
+import type { Metadata } from "next";
 import OnboardingForm from "./form";
+
+export const metadata: Metadata = {
+  title: "Onboarding - Beakcrypt",
+  description: "Set up your workspace. It only takes a few moments.",
+};
 
 export default function OnboardingPage() {
   return (

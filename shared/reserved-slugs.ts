@@ -599,7 +599,7 @@ export const RESERVED_SLUGS = [
   "toolkit",
 ] as const;
 
-export type ReservedSlug = (typeof RESERVED_SLUGS)[number];
+type ReservedSlug = (typeof RESERVED_SLUGS)[number];
 
 const RESERVED_SLUG_SET = new Set(RESERVED_SLUGS);
 
@@ -610,9 +610,7 @@ export function isReservedSlug(slug: string): boolean {
   return RESERVED_SLUG_SET.has(slug.trim().toLowerCase() as ReservedSlug);
 }
 
-export type SlugValidationResult =
-  | { valid: true }
-  | { valid: false; error: string };
+type SlugValidationResult = { valid: true } | { valid: false; error: string };
 
 /**
  * Validates a slug for organization URLs.

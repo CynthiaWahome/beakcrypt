@@ -286,7 +286,7 @@ export default function TeamsContent({
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium leading-none">Role</label>
+              <span className="text-sm font-medium leading-none">Role</span>
               <div className="grid grid-cols-2 gap-2">
                 <button
                   type="button"

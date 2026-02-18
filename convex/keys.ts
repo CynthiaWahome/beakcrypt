@@ -370,39 +370,54 @@ export const approveMySession = mutation({
 
 export const revokeMySession = mutation({
   args: {
-    keyId: v.id("memberKeys"),
+    keyId: v.optional(v.id("memberKeys")),
+    sessionToken: v.optional(v.string()),
   },
   handler: async (ctx, args): Promise<Result<null>> => {
     const userResult = await getAuthUser(ctx);
     if (isFailure(userResult)) return userResult;
 
-    const memberKey = await ctx.db.get(args.keyId);
-    if (!memberKey) {
+    if (!args.keyId && !args.sessionToken) {
       return failure(
-        HttpStatus.NOT_FOUND,
-        "key:not_found",
-        "Key record not found",
+        HttpStatus.BAD_REQUEST,
+        "args:missing",
+        "Either keyId or sessionToken must be provided",
       );
     }
 
-    const membershipResult = await requireOrgMember(ctx, memberKey.orgId);
-    if (isFailure(membershipResult)) return membershipResult;
+    let tokenToRevoke = args.sessionToken;
 
-    if (memberKey.userId !== userResult.data._id) {
-      return failure(
-        HttpStatus.FORBIDDEN,
-        "key:not_owner",
-        "You can only revoke your own device sessions",
-      );
+    if (args.keyId) {
+      const memberKey = await ctx.db.get(args.keyId);
+      if (!memberKey) {
+        return failure(
+          HttpStatus.NOT_FOUND,
+          "key:not_found",
+          "Key record not found",
+        );
+      }
+
+      const membershipResult = await requireOrgMember(ctx, memberKey.orgId);
+      if (isFailure(membershipResult)) return membershipResult;
+
+      if (memberKey.userId !== userResult.data._id) {
+        return failure(
+          HttpStatus.FORBIDDEN,
+          "key:not_owner",
+          "You can only revoke your own device sessions",
+        );
+      }
+
+      await ctx.db.delete(args.keyId);
+      tokenToRevoke = memberKey.sessionToken;
     }
 
-    await ctx.db.delete(args.keyId);
-
-    if (memberKey.sessionToken) {
+    if (tokenToRevoke) {
       try {
         const { auth, headers } = await authComponent.getAuth(createAuth, ctx);
+
         await auth.api.revokeSession({
-          body: { token: memberKey.sessionToken },
+          body: { token: tokenToRevoke },
           headers,
         });
       } catch (e) {
