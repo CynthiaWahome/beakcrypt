@@ -138,6 +138,7 @@ export function useDeviceKeySetup(orgId: Id<"organizations">) {
         const sessionToken = data?.session?.token;
         if (cancelled) return;
         if (!sessionToken) {
+          attemptedRef.current = false;
           setStatus("error");
           setError("Failed to get session token. Try refreshing.");
           return;

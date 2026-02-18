@@ -1005,13 +1005,13 @@ function KeyRow({
   const isPendingApproval = memberKey.status === "pending";
   const isRevoked = memberKey.status === "revoked";
 
-  const createdAt = new Date(
-    memberKey.createdAt ?? Date.now(),
-  ).toLocaleDateString(undefined, {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
+  const createdAt = memberKey.createdAt
+    ? new Date(memberKey.createdAt).toLocaleDateString(undefined, {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      })
+    : "Unknown";
 
   return (
     <div
