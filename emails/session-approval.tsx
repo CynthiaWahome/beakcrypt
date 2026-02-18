@@ -47,7 +47,7 @@ export const SessionApprovalEmail = ({
               <Text className="text-[16px] text-gray-600 mb-6 leading-6">
                 A <strong className="text-black">new device</strong> has signed
                 in to your <strong className="text-black">{orgName}</strong>{" "}
-                account and needs its encryption key approved before it can
+                organization and needs its encryption key approved before it can
                 access shared secrets.
               </Text>
 
