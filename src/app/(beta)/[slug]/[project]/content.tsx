@@ -693,7 +693,10 @@ function EnvironmentSecrets({
           }
           const project = allEnvironments[0]?.projectId;
           if (project) {
-            await ensureLocalMutation({ projectId: project, syncFromDev: true });
+            await ensureLocalMutation({
+              projectId: project,
+              syncFromDev: true,
+            });
           }
           setDestructiveAction(null);
         } else if (destructiveAction === "delete-all-secrets") {
@@ -1318,9 +1321,7 @@ function EnvironmentSecrets({
               ) : destructiveAction === "reset-local" ? (
                 <>
                   This will delete all secrets in your personal{" "}
-                  <span className="font-medium text-foreground">
-                    local
-                  </span>{" "}
+                  <span className="font-medium text-foreground">local</span>{" "}
                   environment and re-sync them from{" "}
                   <span className="font-medium text-foreground">
                     development
@@ -1361,11 +1362,17 @@ function EnvironmentSecrets({
               {destructivePending ? (
                 <>
                   <Loader2 className="animate-spin" />
-                  {destructiveAction === "reset-local" ? "Resetting..." : "Deleting..."}
+                  {destructiveAction === "reset-local"
+                    ? "Resetting..."
+                    : "Deleting..."}
                 </>
               ) : (
                 <>
-                  {destructiveAction === "reset-local" ? <RotateCcw /> : <Trash2 />}
+                  {destructiveAction === "reset-local" ? (
+                    <RotateCcw />
+                  ) : (
+                    <Trash2 />
+                  )}
                   {destructiveAction === "reset-local" ? "Reset" : "Delete"}
                 </>
               )}
