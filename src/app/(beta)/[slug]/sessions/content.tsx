@@ -70,9 +70,9 @@ function parseUserAgent(ua: string | null | undefined): {
   let browser = "Unknown browser";
   if (ua.includes("Firefox")) browser = "Firefox";
   else if (ua.includes("Edg")) browser = "Edge";
+  else if (ua.includes("Opera") || ua.includes("OPR")) browser = "Opera";
   else if (ua.includes("Chrome")) browser = "Chrome";
   else if (ua.includes("Safari")) browser = "Safari";
-  else if (ua.includes("Opera") || ua.includes("OPR")) browser = "Opera";
 
   let os = "Unknown OS";
   if (ua.includes("Mac OS")) os = "macOS";
