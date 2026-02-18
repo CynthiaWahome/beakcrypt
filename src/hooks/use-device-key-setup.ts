@@ -3,7 +3,7 @@
 import { useMutation, useQuery } from "convex/react";
 import { api } from "conv/_generated/api";
 import { isSuccess, isFailure } from "conv/types";
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import type { Id } from "conv/_generated/dataModel";
 import {
   generateKeyPair,
@@ -39,14 +39,14 @@ export function useDeviceKeySetup(orgId: Id<"organizations">) {
     attemptedRef.current = false;
   }
 
-  const [migrationPublicKey] = useState<string | null>(() => {
+  const migrationPublicKey = useMemo(() => {
     const kp = getKeyPair(orgId);
     const kid = getKeyId(orgId);
     if (kp && !kid) {
       return JSON.stringify(kp.publicKey);
     }
     return null;
-  });
+  }, [orgId]);
 
   const migrationKeyResult = useQuery(
     api.keys.getMyKey,
