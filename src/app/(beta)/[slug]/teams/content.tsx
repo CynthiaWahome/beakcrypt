@@ -997,7 +997,10 @@ function KeyRow({
   onRevoke,
   isRevoking,
 }: {
-  memberKey: Doc<"memberKeys">;
+  memberKey: Pick<
+    Doc<"memberKeys">,
+    "_id" | "status" | "createdAt" | "updatedAt"
+  >;
   onRevoke: (keyId: Id<"memberKeys">) => void;
   isRevoking: boolean;
 }) {

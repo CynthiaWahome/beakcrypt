@@ -279,7 +279,14 @@ export const listMemberKeys = query({
     orgId: v.id("organizations"),
     userId: v.string(),
   },
-  handler: async (ctx, args): Promise<Result<Doc<"memberKeys">[]>> => {
+  handler: async (
+    ctx,
+    args,
+  ): Promise<
+    Result<
+      Pick<Doc<"memberKeys">, "_id" | "status" | "createdAt" | "updatedAt">[]
+    >
+  > => {
     const authResult = await requireOrgAdmin(ctx, args.orgId);
     if (isFailure(authResult)) return authResult;
 
@@ -290,7 +297,14 @@ export const listMemberKeys = query({
       )
       .collect();
 
-    return success(keys);
+    return success(
+      keys.map(({ _id, status, createdAt, updatedAt }) => ({
+        _id,
+        status,
+        createdAt,
+        updatedAt,
+      })),
+    );
   },
 });
 
