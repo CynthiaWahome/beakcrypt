@@ -890,10 +890,8 @@ function ManageKeysDialog({
   );
   const [error, setError] = useState("");
 
-  const keys =
-    keysResult && isSuccess(keysResult) ? keysResult.data : [];
-  const keysError =
-    keysResult && isFailure(keysResult) ? keysResult.error : "";
+  const keys = keysResult && isSuccess(keysResult) ? keysResult.data : [];
+  const keysError = keysResult && isFailure(keysResult) ? keysResult.error : "";
   const loading = keysResult === undefined;
 
   const activeKeys = keys.filter((k) => k.status === "active");
@@ -932,9 +930,7 @@ function ManageKeysDialog({
           </DialogDescription>
         </DialogHeader>
 
-        {keysError && (
-          <p className="text-sm text-red-400">{keysError}</p>
-        )}
+        {keysError && <p className="text-sm text-red-400">{keysError}</p>}
 
         {error && (
           <p className="text-sm text-red-400 animate-in fade-in slide-in-from-top-1">
@@ -1009,7 +1005,9 @@ function KeyRow({
   const isPendingApproval = memberKey.status === "pending";
   const isRevoked = memberKey.status === "revoked";
 
-  const createdAt = new Date(memberKey.createdAt ?? Date.now()).toLocaleDateString(undefined, {
+  const createdAt = new Date(
+    memberKey.createdAt ?? Date.now(),
+  ).toLocaleDateString(undefined, {
     month: "short",
     day: "numeric",
     year: "numeric",

@@ -480,7 +480,11 @@ async function validateMyKey(
 ): Promise<Result<Doc<"memberKeys">>> {
   const key = await ctx.db.get(keyId);
   if (!key) {
-    return failure(HttpStatus.NOT_FOUND, "key:not_found", "Key record not found");
+    return failure(
+      HttpStatus.NOT_FOUND,
+      "key:not_found",
+      "Key record not found",
+    );
   }
 
   const membershipResult = await requireOrgMember(ctx, key.orgId);

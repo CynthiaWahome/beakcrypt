@@ -5,7 +5,13 @@ import { api } from "conv/_generated/api";
 import { isSuccess, isFailure } from "conv/types";
 import { useState, useEffect, useRef, useCallback } from "react";
 import type { Id } from "conv/_generated/dataModel";
-import { generateKeyPair, storeKeyPair, getKeyPair, storeKeyId, getKeyId } from "~/lib/crypto";
+import {
+  generateKeyPair,
+  storeKeyPair,
+  getKeyPair,
+  storeKeyId,
+  getKeyId,
+} from "~/lib/crypto";
 import { authClient } from "~/lib/auth-client";
 
 type DeviceKeySetupStatus =
@@ -135,7 +141,13 @@ export function useDeviceKeySetup(orgId: Id<"organizations">) {
     return () => {
       cancelled = true;
     };
-  }, [orgId, sessionsResult, registerKeyMutation, updateTokenMutation, retryCount]);
+  }, [
+    orgId,
+    sessionsResult,
+    registerKeyMutation,
+    updateTokenMutation,
+    retryCount,
+  ]);
 
   const retry = useCallback(() => {
     attemptedRef.current = false;

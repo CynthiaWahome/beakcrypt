@@ -245,7 +245,9 @@ function SessionRow({
   const approveMutation = useMutation(api.keys.approveMySession);
   const revokeKeyMutation = useMutation(api.keys.revokeMyKey);
   const revokeAuthMutation = useMutation(api.keys.revokeMyAuthSession);
-  const revokeSessionAndKeyMutation = useMutation(api.keys.revokeMySessionAndKey);
+  const revokeSessionAndKeyMutation = useMutation(
+    api.keys.revokeMySessionAndKey,
+  );
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [actionType, setActionType] = useState<"approve" | "revoke" | null>(
@@ -318,12 +320,15 @@ function SessionRow({
     startTransition(async () => {
       try {
         let result;
-        const willLogOut = isCurrentSession && (action === "session" || action === "both");
+        const willLogOut =
+          isCurrentSession && (action === "session" || action === "both");
 
         if (action === "key" && memberKey) {
           result = await revokeKeyMutation({ keyId: memberKey._id });
         } else if (action === "session" && authSession) {
-          result = await revokeAuthMutation({ sessionToken: authSession.token });
+          result = await revokeAuthMutation({
+            sessionToken: authSession.token,
+          });
         } else if (action === "both" && memberKey) {
           result = await revokeSessionAndKeyMutation({ keyId: memberKey._id });
         }
@@ -349,17 +354,19 @@ function SessionRow({
     });
   };
 
-  const revokeDialogTitle = confirmRevoke === "key"
-    ? "Revoke Encryption Key"
-    : confirmRevoke === "session"
-      ? "Revoke Login Session"
-      : "Revoke Session & Key";
+  const revokeDialogTitle =
+    confirmRevoke === "key"
+      ? "Revoke Encryption Key"
+      : confirmRevoke === "session"
+        ? "Revoke Login Session"
+        : "Revoke Session & Key";
 
-  const revokeDialogDescription = confirmRevoke === "key"
-    ? "This will remove the encryption key for this device. The device will remain logged in but will no longer be able to view encrypted secrets."
-    : confirmRevoke === "session"
-      ? "This will log out the device. The encryption key record will remain but will become orphaned."
-      : "This will log out the device and remove its encryption key. The device will lose all access.";
+  const revokeDialogDescription =
+    confirmRevoke === "key"
+      ? "This will remove the encryption key for this device. The device will remain logged in but will no longer be able to view encrypted secrets."
+      : confirmRevoke === "session"
+        ? "This will log out the device. The encryption key record will remain but will become orphaned."
+        : "This will log out the device and remove its encryption key. The device will lose all access.";
 
   const willLogOut = isCurrentSession && confirmRevoke !== "key";
 
