@@ -39,6 +39,22 @@ export function useDeviceKeySetup(orgId: Id<"organizations">) {
     attemptedRef.current = false;
   }
 
+  const [migrationPublicKey] = useState<string | null>(() => {
+    const kp = getKeyPair(orgId);
+    const kid = getKeyId(orgId);
+    if (kp && !kid) {
+      return JSON.stringify(kp.publicKey);
+    }
+    return null;
+  });
+
+  const migrationKeyResult = useQuery(
+    api.keys.getMyKey,
+    migrationPublicKey !== null
+      ? { orgId, publicKey: migrationPublicKey }
+      : "skip",
+  );
+
   useEffect(() => {
     let cancelled = false;
 
@@ -46,6 +62,7 @@ export function useDeviceKeySetup(orgId: Id<"organizations">) {
 
     const existingKeyPair = getKeyPair(orgId);
     const storedKeyId = getKeyId(orgId);
+
     if (existingKeyPair && storedKeyId) {
       attemptedRef.current = true;
       setStatus("syncing_token");
@@ -82,6 +99,22 @@ export function useDeviceKeySetup(orgId: Id<"organizations">) {
       return () => {
         cancelled = true;
       };
+    }
+
+    if (existingKeyPair && !storedKeyId) {
+      if (migrationKeyResult === undefined) {
+        return;
+      }
+
+      if (isSuccess(migrationKeyResult) && migrationKeyResult.data !== null) {
+        storeKeyId(orgId, migrationKeyResult.data._id);
+        return;
+      }
+
+      console.warn(
+        "Migration: no backend record found for stored public key; generating a new key pair.",
+        isFailure(migrationKeyResult) ? migrationKeyResult.error : "not found",
+      );
     }
 
     if (sessionsResult === undefined) return;
@@ -146,6 +179,7 @@ export function useDeviceKeySetup(orgId: Id<"organizations">) {
     sessionsResult,
     registerKeyMutation,
     updateTokenMutation,
+    migrationKeyResult,
     retryCount,
   ]);
 
