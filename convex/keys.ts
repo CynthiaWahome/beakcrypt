@@ -34,6 +34,34 @@ export const registerKey = mutation({
     const isOwner = org.ownerId === user._id;
     const status = isOwner && args.wrappedOrgKey ? "active" : "pending";
 
+    const existingMatches = await ctx.db
+      .query("memberKeys")
+      .withIndex("by_org_user_publicKey", (q) =>
+        q
+          .eq("orgId", args.orgId)
+          .eq("userId", user._id)
+          .eq("publicKey", args.publicKey),
+      )
+      .take(2);
+
+    if (existingMatches.length > 1) {
+      console.error(
+        "Duplicate memberKeys detected for org/user/publicKey",
+        args.orgId,
+        user._id,
+        args.publicKey,
+      );
+      return failure(
+        HttpStatus.CONFLICT,
+        "key:duplicate",
+        "A duplicate key record exists; please contact support",
+      );
+    }
+
+    if (existingMatches.length === 1) {
+      return success(existingMatches[0]!);
+    }
+
     const keyId = await ctx.db.insert("memberKeys", {
       orgId: args.orgId,
       userId: user._id,
@@ -159,7 +187,7 @@ export const getMyKey = query({
     const membershipResult = await requireOrgMember(ctx, args.orgId);
     if (isFailure(membershipResult)) return membershipResult;
 
-    const matchingKey = await ctx.db
+    const matches = await ctx.db
       .query("memberKeys")
       .withIndex("by_org_user_publicKey", (q) =>
         q
@@ -167,9 +195,23 @@ export const getMyKey = query({
           .eq("userId", userResult.data._id)
           .eq("publicKey", args.publicKey),
       )
-      .unique();
+      .take(2);
 
-    return success(matchingKey);
+    if (matches.length > 1) {
+      console.error(
+        "Duplicate memberKeys detected for org/user/publicKey",
+        args.orgId,
+        userResult.data._id,
+        args.publicKey,
+      );
+      return failure(
+        HttpStatus.CONFLICT,
+        "key:duplicate",
+        "A duplicate key record exists; please contact support",
+      );
+    }
+
+    return success(matches[0] ?? null);
   },
 });
 
