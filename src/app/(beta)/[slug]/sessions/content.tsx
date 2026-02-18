@@ -156,14 +156,14 @@ export default function SessionsContent({ organization }: Props) {
     }
   }, []);
 
-  useEffect(() => {
-    fetchSessions();
-  }, [fetchSessions]);
-
   const memberKeys =
     sessionsResult && isSuccess(sessionsResult) ? sessionsResult.data : null;
   const keysError =
     sessionsResult && isFailure(sessionsResult) ? sessionsResult.error : "";
+
+  useEffect(() => {
+    fetchSessions();
+  }, [fetchSessions, memberKeys]);
 
   const currentSessionToken = sessionData?.session?.token;
   const loading = memberKeys === null || authSessions === null;
