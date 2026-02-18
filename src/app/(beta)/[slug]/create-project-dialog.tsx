@@ -29,14 +29,13 @@ import { createProject } from "./actions";
 import {
   useActionState,
   useEffect,
-  useRef,
   useState,
   useTransition,
 } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { useAction } from "convex/react";
 import { api } from "conv/_generated/api";
-import { isSuccess, isFailure } from "conv/types";
+import { isSuccess } from "conv/types";
 
 type CreateProjectInputs = {
   name: string;
@@ -89,7 +88,7 @@ export default function CreateProjectDialog({
   );
 
   const [showError, setShowError] = useState(false);
-  const [lastTimestamp, setLastTimestamp] = useState(0);
+
   const [mode, setMode] = useState<"name" | "github">("name");
 
   const searchRepos = useAction(api.github.searchRepos);
@@ -103,23 +102,20 @@ export default function CreateProjectDialog({
   const hasError = "error" in state && !!state.error;
   const hasSuccess = "data" in state && !!state.data;
 
-  const errorTimerRef = useRef<ReturnType<typeof setTimeout>>(null);
-
-  if (state.timestamp !== lastTimestamp) {
-    setLastTimestamp(state.timestamp);
+  useEffect(() => {
     if (hasError) {
       setShowError(true);
-      if (errorTimerRef.current) clearTimeout(errorTimerRef.current);
-      errorTimerRef.current = setTimeout(() => setShowError(false), 3000);
+      const timer = setTimeout(() => setShowError(false), 3000);
+      return () => clearTimeout(timer);
     }
-  }
+  }, [state.timestamp, hasError]);
 
-  const navigatedRef = useRef(false);
-  if (hasSuccess && state.data && !navigatedRef.current) {
-    navigatedRef.current = true;
-    onOpenChange(false);
-    router.push(`/${slug}/${state.data.name}`);
-  }
+  useEffect(() => {
+    if (hasSuccess && state.data) {
+      onOpenChange(false);
+      router.push(`/${slug}/${state.data.name}`);
+    }
+  }, [hasSuccess, state.data, slug, router, onOpenChange]);
 
   useEffect(() => {
     if (mode === "github" && !reposLoaded) {
@@ -271,7 +267,7 @@ export default function CreateProjectDialog({
                   />
                 </div>
 
-                <div className="max-h-[200px] overflow-y-auto rounded-md border">
+                <div className="max-h-50 overflow-y-auto rounded-md border">
                   {repoLoading && repos.length === 0 ? (
                     <div className="flex items-center justify-center py-8">
                       <Spinner className="size-5" />

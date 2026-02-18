@@ -23,11 +23,13 @@ export function useDeviceKeySetup(orgId: Id<"organizations">) {
   const sessionsResult = useQuery(api.keys.listMySessions, { orgId });
   const attemptedRef = useRef(false);
 
-  useEffect(() => {
-    attemptedRef.current = false;
+  const [prevOrgId, setPrevOrgId] = useState(orgId);
+  if (orgId !== prevOrgId) {
+    setPrevOrgId(orgId);
     setStatus("idle");
     setError("");
-  }, [orgId]);
+    attemptedRef.current = false;
+  }
 
   useEffect(() => {
     let cancelled = false;

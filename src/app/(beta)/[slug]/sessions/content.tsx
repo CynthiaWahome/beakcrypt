@@ -309,7 +309,10 @@ function SessionRow({
 
         if (isFailure(result)) {
           setError(result.error);
+          return;
         }
+
+        await onRefreshSessions();
       } catch {
         setError("Something went wrong during approval.");
       } finally {

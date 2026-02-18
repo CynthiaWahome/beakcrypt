@@ -7,7 +7,7 @@ import type { Response } from "~/types/response";
 import { Confetti } from "~/components/ui/confetti";
 import { Check, AlertTriangle } from "lucide-react";
 import { ButtonGroup } from "~/components/ui/button-group";
-import { useActionState, useRef, useState } from "react";
+import { useActionState, useRef, useState, useEffect } from "react";
 
 const initialState: Response<string, { email: string }> = {
   timestamp: Date.now(),
@@ -25,21 +25,17 @@ export default function WaitlistForm() {
   );
   const [showError, setShowError] = useState(false);
   const [pendingEmail, setPendingEmail] = useState("");
-  const [prevTimestamp, setPrevTimestamp] = useState(state.timestamp);
 
   const hasSuccess = "message" in state && !!state.message;
   const hasError = "error" in state && !!state.error;
 
-  const errorTimerRef = useRef<ReturnType<typeof setTimeout>>(null);
-
-  if (state.timestamp !== prevTimestamp) {
-    setPrevTimestamp(state.timestamp);
+  useEffect(() => {
     if (hasError) {
       setShowError(true);
-      if (errorTimerRef.current) clearTimeout(errorTimerRef.current);
-      errorTimerRef.current = setTimeout(() => setShowError(false), 3000);
+      const timer = setTimeout(() => setShowError(false), 3000);
+      return () => clearTimeout(timer);
     }
-  }
+  }, [state.timestamp, hasError]);
 
   const errorMessage = hasError
     ? Array.isArray(state.error)
