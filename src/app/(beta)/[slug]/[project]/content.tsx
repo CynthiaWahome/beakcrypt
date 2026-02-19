@@ -193,6 +193,7 @@ export default function ProjectContent({
                 environmentName={env.name}
                 isPersonal={env.isPersonal ?? false}
                 allEnvironments={environments}
+                projectId={project._id}
                 orgId={project.orgId}
                 onEnvDeleted={() => setActiveEnvId(null)}
               />
@@ -403,6 +404,7 @@ function EnvironmentSecrets({
   environmentName,
   isPersonal,
   allEnvironments,
+  projectId,
   orgId,
   onEnvDeleted,
 }: {
@@ -410,6 +412,7 @@ function EnvironmentSecrets({
   environmentName: string;
   isPersonal: boolean;
   allEnvironments: Doc<"environments">[];
+  projectId: Id<"projects">;
   orgId: Id<"organizations">;
   onEnvDeleted: () => void;
 }) {
@@ -460,6 +463,20 @@ function EnvironmentSecrets({
   const otherEnvironments = allEnvironments.filter(
     (env) => env._id !== environmentId,
   );
+
+  const devEnv = isPersonal
+    ? allEnvironments.find(
+        (env) => env.name === "development" && !env.isPersonal,
+      )
+    : undefined;
+  const devSecretsResult = useQuery(
+    api.secrets.list,
+    devEnv ? { environmentId: devEnv._id } : "skip",
+  );
+  const devHasSecrets =
+    devSecretsResult &&
+    isSuccess(devSecretsResult) &&
+    devSecretsResult.data.length > 0;
 
   const [decryptedValues, setDecryptedValues] = useState<
     Record<string, string>
@@ -694,13 +711,7 @@ function EnvironmentSecrets({
             setDestructiveError(result.error);
             return;
           }
-          const project = allEnvironments[0]?.projectId;
-          if (project) {
-            await ensureLocalMutation({
-              projectId: project,
-              syncFromDev: true,
-            });
-          }
+          await ensureLocalMutation({ projectId, syncFromDev: true });
           setDestructiveAction(null);
         } else if (destructiveAction === "delete-all-secrets") {
           const result = await removeAllMutation({ environmentId });
@@ -864,15 +875,26 @@ function EnvironmentSecrets({
               <Plus />
               Add Secret
             </Button>
-            {hasSyncTargets && (
+            {isPersonal && devHasSecrets ? (
               <Button
                 size="sm"
                 variant="outline"
-                onClick={() => setSyncOpen(true)}
+                onClick={() => setDestructiveAction("reset-local")}
               >
-                <ArrowRightLeft />
-                Sync from...
+                <RotateCcw />
+                Reset Environment
               </Button>
+            ) : (
+              hasSyncTargets && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setSyncOpen(true)}
+                >
+                  <ArrowRightLeft />
+                  Sync from...
+                </Button>
+              )
             )}
           </div>
         </Empty>
