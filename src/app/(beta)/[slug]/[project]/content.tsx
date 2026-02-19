@@ -9,7 +9,7 @@ import {
 import { api } from "conv/_generated/api";
 import { isSuccess, isFailure } from "conv/types";
 import type { Doc, Id } from "conv/_generated/dataModel";
-import { useState, useTransition, useCallback, useRef, useEffect } from "react";
+import { useState, useTransition, useCallback, useRef } from "react";
 import {
   Plus,
   Trash2,
@@ -118,24 +118,6 @@ export default function ProjectContent({
   const selectedEnvId = activeEnvId ?? environments[0]?._id ?? null;
 
   const [addEnvOpen, setAddEnvOpen] = useState(false);
-
-  const ensureLocalMutation = useMutation(api.environments.ensurePersonalLocal);
-  const localEnvCreatedRef = useRef(false);
-  useEffect(() => {
-    if (localEnvCreatedRef.current) return;
-    const hasLocalEnv = environments.some(
-      (env) => env.name === "local" && env.isPersonal,
-    );
-    if (!hasLocalEnv && environments.length > 0) {
-      localEnvCreatedRef.current = true;
-      ensureLocalMutation({ projectId: project._id, syncFromDev: true }).catch(
-        (err) => {
-          localEnvCreatedRef.current = false;
-          console.error("Failed to create personal local env:", err);
-        },
-      );
-    }
-  }, [environments, ensureLocalMutation, project._id]);
 
   return (
     <div className="flex flex-1 flex-col">

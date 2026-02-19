@@ -1,6 +1,10 @@
 import { api } from "conv/_generated/api";
 import { isFailure, HttpStatus } from "conv/types";
-import { fetchAuthQuery, preloadAuthQuery } from "~/lib/auth-server";
+import {
+  fetchAuthQuery,
+  fetchAuthMutation,
+  preloadAuthQuery,
+} from "~/lib/auth-server";
 import { notFound, redirect } from "next/navigation";
 import ProjectContent from "./content";
 
@@ -32,6 +36,11 @@ export default async function ProjectHandler({
 
     return notFound();
   }
+
+  await fetchAuthMutation(api.environments.ensurePersonalLocal, {
+    projectId: projectResult.data._id,
+    syncFromDev: true,
+  });
 
   const preloadedEnvironments = await preloadAuthQuery(api.environments.list, {
     projectId: projectResult.data._id,
