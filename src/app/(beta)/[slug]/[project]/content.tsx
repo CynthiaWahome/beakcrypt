@@ -9,7 +9,7 @@ import {
 import { api } from "conv/_generated/api";
 import { isSuccess, isFailure } from "conv/types";
 import type { Doc, Id } from "conv/_generated/dataModel";
-import { useState, useTransition, useCallback, useRef } from "react";
+import { useState, useTransition, useCallback, useRef, useEffect } from "react";
 import {
   Plus,
   Trash2,
@@ -24,6 +24,7 @@ import {
   MoreVertical,
   ShieldAlert,
   Lock,
+  RotateCcw,
 } from "lucide-react";
 import Link from "next/link";
 import { SidebarTrigger } from "~/components/ui/sidebar";
@@ -118,6 +119,24 @@ export default function ProjectContent({
 
   const [addEnvOpen, setAddEnvOpen] = useState(false);
 
+  const ensureLocalMutation = useMutation(api.environments.ensurePersonalLocal);
+  const localEnvCreatedRef = useRef(false);
+  useEffect(() => {
+    if (localEnvCreatedRef.current) return;
+    const hasLocalEnv = environments.some(
+      (env) => env.name === "local" && env.isPersonal,
+    );
+    if (!hasLocalEnv && environments.length > 0) {
+      localEnvCreatedRef.current = true;
+      ensureLocalMutation({ projectId: project._id, syncFromDev: true }).catch(
+        (err) => {
+          localEnvCreatedRef.current = false;
+          console.error("Failed to create personal local env:", err);
+        },
+      );
+    }
+  }, [environments, ensureLocalMutation, project._id]);
+
   return (
     <div className="flex flex-1 flex-col">
       <div className="flex flex-col gap-3 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
@@ -151,6 +170,9 @@ export default function ProjectContent({
               {environments.map((env) => (
                 <TabsTrigger key={env._id} value={env._id}>
                   {env.name}
+                  {env.isPersonal && (
+                    <Lock className="size-3 text-muted-foreground" />
+                  )}
                 </TabsTrigger>
               ))}
             </TabsList>
@@ -169,7 +191,9 @@ export default function ProjectContent({
               <EnvironmentSecrets
                 environmentId={env._id}
                 environmentName={env.name}
+                isPersonal={env.isPersonal ?? false}
                 allEnvironments={environments}
+                projectId={project._id}
                 orgId={project.orgId}
                 onEnvDeleted={() => setActiveEnvId(null)}
               />
@@ -228,11 +252,18 @@ function CreateEnvironmentDialog({
 
   const handleCreate = () => {
     if (!name.trim()) return;
+    const trimmedName = name.trim().toLowerCase();
+
+    if (trimmedName === "local") {
+      setError('"local" is reserved for personal environments.');
+      return;
+    }
+
     setError("");
     startTransition(async () => {
       try {
         const result = await createEnvMutation({
-          name: name.trim().toLowerCase(),
+          name: trimmedName,
           projectId,
         });
         if (isFailure(result)) {
@@ -371,13 +402,17 @@ function CreateEnvironmentDialog({
 function EnvironmentSecrets({
   environmentId,
   environmentName,
+  isPersonal,
   allEnvironments,
+  projectId,
   orgId,
   onEnvDeleted,
 }: {
   environmentId: Id<"environments">;
   environmentName: string;
+  isPersonal: boolean;
   allEnvironments: Doc<"environments">[];
+  projectId: Id<"projects">;
   orgId: Id<"organizations">;
   onEnvDeleted: () => void;
 }) {
@@ -397,7 +432,7 @@ function EnvironmentSecrets({
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
   const [destructiveAction, setDestructiveAction] = useState<
-    "delete-env" | "delete-all-secrets" | null
+    "delete-env" | "delete-all-secrets" | "reset-local" | null
   >(null);
   const [destructivePending, startDestructiveTransition] = useTransition();
   const [destructiveError, setDestructiveError] = useState("");
@@ -428,6 +463,20 @@ function EnvironmentSecrets({
   const otherEnvironments = allEnvironments.filter(
     (env) => env._id !== environmentId,
   );
+
+  const devEnv = isPersonal
+    ? allEnvironments.find(
+        (env) => env.name === "development" && !env.isPersonal,
+      )
+    : undefined;
+  const devSecretsResult = useQuery(
+    api.secrets.list,
+    devEnv ? { environmentId: devEnv._id } : "skip",
+  );
+  const devHasSecrets =
+    devSecretsResult &&
+    isSuccess(devSecretsResult) &&
+    devSecretsResult.data.length > 0;
 
   const [decryptedValues, setDecryptedValues] = useState<
     Record<string, string>
@@ -642,6 +691,8 @@ function EnvironmentSecrets({
     setSyncError("");
   };
 
+  const ensureLocalMutation = useMutation(api.environments.ensurePersonalLocal);
+
   const handleDestructiveConfirm = () => {
     setDestructiveError("");
     startDestructiveTransition(async () => {
@@ -654,6 +705,30 @@ function EnvironmentSecrets({
           }
           setDestructiveAction(null);
           onEnvDeleted();
+        } else if (destructiveAction === "reset-local") {
+          const result = await removeAllMutation({ environmentId });
+          if (isFailure(result)) {
+            setDestructiveError(result.error);
+            return;
+          }
+          try {
+            const syncResult = await ensureLocalMutation({
+              projectId,
+              syncFromDev: true,
+            });
+            if (isFailure(syncResult)) {
+              setDestructiveError(
+                `Partial success: secrets removed but sync failed — ${syncResult.error}`,
+              );
+              return;
+            }
+          } catch (syncErr) {
+            setDestructiveError(
+              `Partial success: secrets removed but sync failed — ${syncErr instanceof Error ? syncErr.message : "Unknown error"}`,
+            );
+            return;
+          }
+          setDestructiveAction(null);
         } else if (destructiveAction === "delete-all-secrets") {
           const result = await removeAllMutation({ environmentId });
           if (isFailure(result)) {
@@ -792,12 +867,17 @@ function EnvironmentSecrets({
         <Empty className="min-h-[40vh]">
           <EmptyHeader>
             <EmptyMedia variant="icon">
-              <Key />
+              {isPersonal ? <Lock /> : <Key />}
             </EmptyMedia>
-            <EmptyTitle>No secrets in {environmentName}</EmptyTitle>
+            <EmptyTitle>
+              {isPersonal
+                ? "Your personal local environment"
+                : `No secrets in ${environmentName}`}
+            </EmptyTitle>
             <EmptyDescription>
-              Add secrets one at a time, paste an .env file
-              {hasSyncTargets ? ", or sync from another environment" : ""}.
+              {isPersonal
+                ? "This is your private workspace. Add secrets here to override values for local development — only you can see them."
+                : `Add secrets one at a time, paste an .env file${hasSyncTargets ? ", or sync from another environment" : ""}.`}
             </EmptyDescription>
           </EmptyHeader>
           <div className="flex items-center gap-2">
@@ -811,15 +891,26 @@ function EnvironmentSecrets({
               <Plus />
               Add Secret
             </Button>
-            {hasSyncTargets && (
+            {isPersonal && devHasSecrets ? (
               <Button
                 size="sm"
                 variant="outline"
-                onClick={() => setSyncOpen(true)}
+                onClick={() => setDestructiveAction("reset-local")}
               >
-                <ArrowRightLeft />
-                Sync from...
+                <RotateCcw />
+                Reset Environment
               </Button>
+            ) : (
+              hasSyncTargets && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setSyncOpen(true)}
+                >
+                  <ArrowRightLeft />
+                  Sync from...
+                </Button>
+              )
             )}
           </div>
         </Empty>
@@ -876,13 +967,23 @@ function EnvironmentSecrets({
                       Delete all secrets
                     </DropdownMenuItem>
                   )}
-                  <DropdownMenuItem
-                    className="text-destructive focus:text-destructive"
-                    onClick={() => setDestructiveAction("delete-env")}
-                  >
-                    <Trash2 />
-                    Delete environment
-                  </DropdownMenuItem>
+                  {isPersonal ? (
+                    <DropdownMenuItem
+                      className="text-destructive focus:text-destructive"
+                      onClick={() => setDestructiveAction("reset-local")}
+                    >
+                      <RotateCcw />
+                      Reset local environment
+                    </DropdownMenuItem>
+                  ) : (
+                    <DropdownMenuItem
+                      className="text-destructive focus:text-destructive"
+                      onClick={() => setDestructiveAction("delete-env")}
+                    >
+                      <Trash2 />
+                      Delete environment
+                    </DropdownMenuItem>
+                  )}
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
@@ -1244,7 +1345,9 @@ function EnvironmentSecrets({
             <DialogTitle>
               {destructiveAction === "delete-env"
                 ? "Delete Environment"
-                : "Delete All Secrets"}
+                : destructiveAction === "reset-local"
+                  ? "Reset Local Environment"
+                  : "Delete All Secrets"}
             </DialogTitle>
             <DialogDescription>
               {destructiveAction === "delete-env" ? (
@@ -1255,6 +1358,16 @@ function EnvironmentSecrets({
                   </span>
                   ? This will permanently remove the environment and all its
                   secrets. This action cannot be undone.
+                </>
+              ) : destructiveAction === "reset-local" ? (
+                <>
+                  This will delete all secrets in your personal{" "}
+                  <span className="font-medium text-foreground">local</span>{" "}
+                  environment and re-sync them from{" "}
+                  <span className="font-medium text-foreground">
+                    development
+                  </span>
+                  . Any custom overrides will be lost.
                 </>
               ) : (
                 <>
@@ -1290,12 +1403,18 @@ function EnvironmentSecrets({
               {destructivePending ? (
                 <>
                   <Loader2 className="animate-spin" />
-                  Deleting...
+                  {destructiveAction === "reset-local"
+                    ? "Resetting..."
+                    : "Deleting..."}
                 </>
               ) : (
                 <>
-                  <Trash2 />
-                  Delete
+                  {destructiveAction === "reset-local" ? (
+                    <RotateCcw />
+                  ) : (
+                    <Trash2 />
+                  )}
+                  {destructiveAction === "reset-local" ? "Reset" : "Delete"}
                 </>
               )}
             </Button>

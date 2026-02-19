@@ -1,8 +1,47 @@
 import { v } from "convex/values";
-import type { Doc } from "./_generated/dataModel";
+import type { Doc, Id } from "./_generated/dataModel";
 import { query, mutation } from "./_generated/server";
+import type { MutationCtx } from "./_generated/server";
 import { Result, success, failure, HttpStatus, isFailure } from "./types";
 import { getAuthUser, requireOrgAdmin, requireOrgMember } from "./authHelpers";
+
+async function syncSecretsFromDev(
+  ctx: MutationCtx,
+  projectId: Id<"projects">,
+  targetEnvId: Id<"environments">,
+  userId: string,
+) {
+  const devEnv = await ctx.db
+    .query("environments")
+    .withIndex("by_project_and_name", (q) =>
+      q.eq("projectId", projectId).eq("name", "development"),
+    )
+    .filter((q) =>
+      q.or(
+        q.eq(q.field("isPersonal"), false),
+        q.eq(q.field("isPersonal"), undefined),
+      ),
+    )
+    .first();
+
+  if (!devEnv) return;
+
+  const devSecrets = await ctx.db
+    .query("secrets")
+    .withIndex("by_environment", (q) => q.eq("environmentId", devEnv._id))
+    .collect();
+
+  for (const secret of devSecrets) {
+    await ctx.db.insert("secrets", {
+      key: secret.key,
+      encryptedValue: secret.encryptedValue,
+      environmentId: targetEnvId,
+      createdBy: userId,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    });
+  }
+}
 
 export const list = query({
   args: {
@@ -24,12 +63,91 @@ export const list = query({
     const authResult = await requireOrgMember(ctx, project.orgId);
     if (isFailure(authResult)) return authResult;
 
-    const environments = await ctx.db
+    const allEnvironments = await ctx.db
       .query("environments")
       .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
       .collect();
 
-    return success(environments.sort((a, b) => a.order - b.order));
+    const userId = userResult.data._id;
+    const visible = allEnvironments.filter(
+      (env) => !env.isPersonal || env.ownerId === userId,
+    );
+
+    return success(visible.sort((a, b) => a.order - b.order));
+  },
+});
+
+export const ensurePersonalLocal = mutation({
+  args: {
+    projectId: v.id("projects"),
+    syncFromDev: v.optional(v.boolean()),
+  },
+  handler: async (ctx, args): Promise<Result<Doc<"environments">>> => {
+    const userResult = await getAuthUser(ctx);
+    if (isFailure(userResult)) return userResult;
+
+    const project = await ctx.db.get(args.projectId);
+    if (!project) {
+      return failure(
+        HttpStatus.NOT_FOUND,
+        "project:not_found",
+        "Project not found",
+      );
+    }
+
+    const authResult = await requireOrgMember(ctx, project.orgId);
+    if (isFailure(authResult)) return authResult;
+
+    const userId = userResult.data._id;
+
+    const existing = await ctx.db
+      .query("environments")
+      .withIndex("by_project_and_owner", (q) =>
+        q.eq("projectId", args.projectId).eq("ownerId", userId),
+      )
+      .filter((q) => q.eq(q.field("name"), "local"))
+      .first();
+
+    if (existing) {
+      if (args.syncFromDev !== false) {
+        const existingSecrets = await ctx.db
+          .query("secrets")
+          .withIndex("by_environment", (q) =>
+            q.eq("environmentId", existing._id),
+          )
+          .first();
+
+        if (!existingSecrets) {
+          await syncSecretsFromDev(ctx, args.projectId, existing._id, userId);
+        }
+      }
+      return success(existing);
+    }
+
+    const envId = await ctx.db.insert("environments", {
+      name: "local",
+      projectId: args.projectId,
+      order: 0,
+      isPersonal: true,
+      ownerId: userId,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    });
+
+    if (args.syncFromDev !== false) {
+      await syncSecretsFromDev(ctx, args.projectId, envId, userId);
+    }
+
+    const environment = await ctx.db.get(envId);
+    if (!environment) {
+      return failure(
+        HttpStatus.INTERNAL_SERVER_ERROR,
+        "env:create_failed",
+        "Failed to create personal environment",
+      );
+    }
+
+    return success(environment, HttpStatus.CREATED);
   },
 });
 
@@ -54,13 +172,22 @@ export const create = mutation({
     const authResult = await requireOrgAdmin(ctx, project.orgId);
     if (isFailure(authResult)) return authResult;
 
+    if (args.name.toLowerCase() === "local") {
+      return failure(
+        HttpStatus.CONFLICT,
+        "env:reserved_name",
+        '"local" is reserved for personal environments',
+      );
+    }
+
     const environments = await ctx.db
       .query("environments")
       .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
       .collect();
 
     const existing = environments.find(
-      (env) => env.name.toLowerCase() === args.name.toLowerCase(),
+      (env) =>
+        !env.isPersonal && env.name.toLowerCase() === args.name.toLowerCase(),
     );
 
     if (existing) {
@@ -71,12 +198,14 @@ export const create = mutation({
       );
     }
 
-    const maxOrder = Math.max(...environments.map((env) => env.order), -1);
+    const sharedEnvs = environments.filter((env) => !env.isPersonal);
+    const maxOrder = Math.max(...sharedEnvs.map((env) => env.order), -1);
 
     const envId = await ctx.db.insert("environments", {
       name: args.name,
       projectId: args.projectId,
       order: maxOrder + 1,
+      isPersonal: false,
       createdAt: Date.now(),
       updatedAt: Date.now(),
     });
@@ -113,6 +242,22 @@ export const update = mutation({
       );
     }
 
+    if (environment.isPersonal && environment.ownerId !== userResult.data._id) {
+      return failure(
+        HttpStatus.FORBIDDEN,
+        "env:not_owner",
+        "You can only modify your own personal environment",
+      );
+    }
+
+    if (environment.isPersonal && args.name && args.name !== environment.name) {
+      return failure(
+        HttpStatus.BAD_REQUEST,
+        "env:cannot_rename_personal",
+        "Personal environments cannot be renamed",
+      );
+    }
+
     const project = await ctx.db.get(environment.projectId);
     if (!project) {
       return failure(
@@ -122,11 +267,25 @@ export const update = mutation({
       );
     }
 
-    const authResult = await requireOrgAdmin(ctx, project.orgId);
-    if (isFailure(authResult)) return authResult;
+    if (!environment.isPersonal) {
+      const authResult = await requireOrgAdmin(ctx, project.orgId);
+      if (isFailure(authResult)) return authResult;
+    } else {
+      const authResult = await requireOrgMember(ctx, project.orgId);
+      if (isFailure(authResult)) return authResult;
+    }
 
     if (args.name && args.name !== environment.name) {
       const newName = args.name;
+
+      if (newName.toLowerCase() === "local") {
+        return failure(
+          HttpStatus.CONFLICT,
+          "env:reserved_name",
+          '"local" is reserved for personal environments',
+        );
+      }
+
       const environments = await ctx.db
         .query("environments")
         .withIndex("by_project", (q) =>
@@ -137,6 +296,7 @@ export const update = mutation({
       const existing = environments.find(
         (env) =>
           env._id !== args.id &&
+          !env.isPersonal &&
           env.name.toLowerCase() === newName.toLowerCase(),
       );
 
@@ -185,6 +345,14 @@ export const remove = mutation({
       );
     }
 
+    if (environment.isPersonal && environment.ownerId !== userResult.data._id) {
+      return failure(
+        HttpStatus.FORBIDDEN,
+        "env:not_owner",
+        "You can only delete your own personal environment",
+      );
+    }
+
     const project = await ctx.db.get(environment.projectId);
     if (!project) {
       return failure(
@@ -194,8 +362,13 @@ export const remove = mutation({
       );
     }
 
-    const authResult = await requireOrgAdmin(ctx, project.orgId);
-    if (isFailure(authResult)) return authResult;
+    if (!environment.isPersonal) {
+      const authResult = await requireOrgAdmin(ctx, project.orgId);
+      if (isFailure(authResult)) return authResult;
+    } else {
+      const authResult = await requireOrgMember(ctx, project.orgId);
+      if (isFailure(authResult)) return authResult;
+    }
 
     const secrets = await ctx.db
       .query("secrets")
