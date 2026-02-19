@@ -113,6 +113,9 @@ export default function InviteContent({
   }
 
   if (!invite || !organization) {
+    if (actionType === "accept" && isPending) {
+      return <AppLoader />;
+    }
     return (
       <div className="flex min-h-screen flex-col items-center justify-center bg-black text-center p-4">
         <div className="rounded-full bg-zinc-900 p-3 mb-4">

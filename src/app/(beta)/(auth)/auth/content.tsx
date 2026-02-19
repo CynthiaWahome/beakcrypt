@@ -30,7 +30,9 @@ export default function AuthContent({
             provider: "github",
             errorCallbackURL: "/auth",
             callbackURL: resolvedCallbackURL,
-            newUserCallbackURL: "/onboarding",
+            newUserCallbackURL: resolvedCallbackURL.startsWith("/auth/invite")
+              ? resolvedCallbackURL
+              : "/onboarding",
           });
         }}
       >

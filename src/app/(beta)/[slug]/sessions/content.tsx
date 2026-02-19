@@ -44,7 +44,7 @@ import {
   MoreVertical,
 } from "lucide-react";
 import { useOrgKey } from "~/hooks/use-org-key";
-import { wrapOrgKey } from "~/lib/crypto";
+import { wrapOrgKey, removeKeyPair, removeKeyId } from "~/lib/crypto";
 import { authClient, useSession } from "~/lib/auth-client";
 import type { Session } from "~/lib/auth-client";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -365,6 +365,7 @@ export default function SessionsContent({ organization }: Props) {
 function SessionRow({
   unified,
   orgKey,
+  orgId,
   onRefreshSessions,
 }: {
   unified: UnifiedSession;
@@ -466,6 +467,11 @@ function SessionRow({
         if (result && isFailure(result)) {
           setError(result.error);
           return;
+        }
+
+        if (isCurrentSession) {
+          removeKeyPair(orgId);
+          removeKeyId(orgId);
         }
 
         setConfirmRevoke(null);

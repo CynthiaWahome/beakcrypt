@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { Suspense } from "react";
 import WaitlistForm from "./form";
+import BetaCookie from "./beta-cookie";
 import { Github } from "lucide-react";
 import AnimatedTerminal from "./terminal";
 import { Badge } from "~/components/ui/badge";
@@ -15,6 +17,9 @@ export const metadata: Metadata = {
 export default function WaitlistPage() {
   return (
     <section className="flex flex-col items-center justify-between gap-5 min-h-screen w-full">
+      <Suspense fallback={null}>
+        <BetaCookie />
+      </Suspense>
       <nav className="mx-auto flex w-full max-w-6xl items-center justify-between px-6 py-5">
         <Link href="/" className="flex items-center gap-2.5">
           <div className="flex h-7 w-7 items-center justify-center border border-[#5eead4]/50">
