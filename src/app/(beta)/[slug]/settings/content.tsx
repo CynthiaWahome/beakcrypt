@@ -333,6 +333,7 @@ export default function SettingsContent({ organization }: Props) {
                   slugPending ||
                   !slugChanged ||
                   !slug.trim() ||
+                  slug !== debouncedSlug ||
                   isSlugCheckLoading ||
                   isSlugTaken === true ||
                   isSlugInvalid
