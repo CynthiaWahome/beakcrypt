@@ -147,7 +147,7 @@ export default function ProjectContent({
           onValueChange={(v) => setActiveEnvId(v as Id<"environments">)}
           className="flex-1"
         >
-          <div className="flex items-center gap-2 overflow-x-auto px-6 pt-4">
+          <div className="flex items-center gap-2 overflow-x-auto overflow-y-hidden px-6 pt-4">
             <TabsList variant="line">
               {environments.map((env) => (
                 <TabsTrigger key={env._id} value={env._id}>
