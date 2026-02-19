@@ -711,7 +711,23 @@ function EnvironmentSecrets({
             setDestructiveError(result.error);
             return;
           }
-          await ensureLocalMutation({ projectId, syncFromDev: true });
+          try {
+            const syncResult = await ensureLocalMutation({
+              projectId,
+              syncFromDev: true,
+            });
+            if (isFailure(syncResult)) {
+              setDestructiveError(
+                `Partial success: secrets removed but sync failed — ${syncResult.error}`,
+              );
+              return;
+            }
+          } catch (syncErr) {
+            setDestructiveError(
+              `Partial success: secrets removed but sync failed — ${syncErr instanceof Error ? syncErr.message : "Unknown error"}`,
+            );
+            return;
+          }
           setDestructiveAction(null);
         } else if (destructiveAction === "delete-all-secrets") {
           const result = await removeAllMutation({ environmentId });
