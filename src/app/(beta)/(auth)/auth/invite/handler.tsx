@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { X } from "lucide-react";
 import InviteContent from "./content";
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { api } from "conv/_generated/api";
 import { isSuccess } from "conv/types";
@@ -56,11 +57,20 @@ function InviteNotFoundState() {
   );
 }
 
+const BETA_COOKIE_MAX_AGE = 60 * 60 * 24 * 365;
+
 export default async function InviteHandler({
   searchParamsPromise,
 }: {
   searchParamsPromise: Promise<{ token?: string }>;
 }) {
+  const cookieStore = await cookies();
+  cookieStore.set("private-beta", "true", {
+    path: "/",
+    maxAge: BETA_COOKIE_MAX_AGE,
+    sameSite: "lax",
+  });
+
   const { token } = await searchParamsPromise;
 
   if (!token) {
