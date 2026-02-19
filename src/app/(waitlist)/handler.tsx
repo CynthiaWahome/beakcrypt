@@ -1,13 +1,10 @@
 import Link from "next/link";
 import WaitlistForm from "./form";
 import { Github } from "lucide-react";
-import { cookies } from "next/headers";
 import AnimatedTerminal from "./terminal";
 import { redirect } from "next/navigation";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
-
-const BETA_COOKIE_MAX_AGE = 60 * 60 * 24 * 365;
 
 export default async function WaitlistHandler({
   searchParamsPromise,
@@ -16,13 +13,7 @@ export default async function WaitlistHandler({
 }) {
   const params = await searchParamsPromise;
   if (params.beta === "true") {
-    const cookieStore = await cookies();
-    cookieStore.set("private-beta", "true", {
-      path: "/",
-      maxAge: BETA_COOKIE_MAX_AGE,
-      sameSite: "lax",
-    });
-    redirect("/");
+    redirect("/api/beta");
   }
 
   return (

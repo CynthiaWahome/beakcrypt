@@ -1,9 +1,21 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
+const BETA_COOKIE_MAX_AGE = 60 * 60 * 24 * 365;
+
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const isPrivateBeta = request.cookies.get("private-beta")?.value === "true";
+
+  if (pathname.startsWith("/auth/invite")) {
+    const response = NextResponse.next();
+    response.cookies.set("private-beta", "true", {
+      path: "/",
+      maxAge: BETA_COOKIE_MAX_AGE,
+      sameSite: "lax",
+    });
+    return response;
+  }
 
   if (pathname === "/") {
     if (isPrivateBeta) {
