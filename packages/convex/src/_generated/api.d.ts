@@ -8,9 +8,9 @@
  * @module
  */
 
-import type * as auth_server from "../auth-server.js";
 import type * as auth from "../auth.js";
 import type * as authHelpers from "../authHelpers.js";
+import type * as authServer from "../authServer.js";
 import type * as environments from "../environments.js";
 import type * as github from "../github.js";
 import type * as http from "../http.js";
@@ -31,9 +31,9 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
-  "auth-server": typeof auth_server;
   auth: typeof auth;
   authHelpers: typeof authHelpers;
+  authServer: typeof authServer;
   environments: typeof environments;
   github: typeof github;
   http: typeof http;
