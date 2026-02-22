@@ -1,9 +1,9 @@
 packages:
-  - .
-
-ignoredBuiltDependencies:
-  - sharp
-  - unrs-resolver
+  - apps/*
+  - packages/*
 
 onlyBuiltDependencies:
+  - core-js-pure
   - esbuild
+  - sharp
+  - unrs-resolver

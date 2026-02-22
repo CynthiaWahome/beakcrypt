@@ -1,0 +1,24 @@
+{
+	"name": "@beakcrypt/transactional",
+	"version": "0.0.1",
+	"private": true,
+	"exports": {
+		"./emails": "./emails/index.ts"
+	},
+	"scripts": {
+		"dev": "email dev -p 3001",
+		"export": "email export"
+	},
+	"dependencies": {
+		"@react-email/components": "^1.0.8",
+		"react": "^19.2.0",
+		"react-dom": "^19.2.0"
+	},
+	"devDependencies": {
+		"react-email": "^5.0.1",
+		"@types/react": "^19.2.3",
+		"@types/react-dom": "^19.2.2",
+		"@react-email/preview-server": "^5.2.8",
+		"@beakcrypt/typescript-config": "workspace:*"
+	}
+}
