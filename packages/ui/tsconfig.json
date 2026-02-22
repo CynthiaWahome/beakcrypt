@@ -1,0 +1,10 @@
+{
+  "extends": "@beakcrypt/typescript-config/react-library.json",
+  "compilerOptions": {
+    "paths": {
+      "@beakcrypt/ui/*": ["./src/*"]
+    }
+  },
+  "include": ["."],
+  "exclude": ["node_modules", "dist"]
+}

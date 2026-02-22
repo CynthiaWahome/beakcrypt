@@ -1,0 +1,22 @@
+{
+	"name": "@beakcrypt/shared",
+	"version": "0.0.1",
+	"module": "src/index.ts",
+	"type": "module",
+	"private": true,
+	"exports": {
+		".": "./src/index.ts"
+	},
+	"scripts": {
+		"typecheck": "tsgo --noEmit",
+		"format": "prettier --write ."
+	},
+	"dependencies": {
+		"http-status": "^2.1.0"
+	},
+	"devDependencies": {
+    "prettier": "^3.7.4",
+    "@beakcrypt/typescript-config": "workspace:*",
+    "@typescript/native-preview": "7.0.0-dev.20260219.1"
+	}
+}

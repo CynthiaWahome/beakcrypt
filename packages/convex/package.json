@@ -1,0 +1,41 @@
+{
+  "name": "@beakcrypt/convex",
+  "version": "0.0.1",
+  "type": "module",
+  "private": true,
+  "exports": {
+    ".": {
+      "types": "./src/_generated/api.d.ts",
+      "default": "./src/_generated/api.js"
+    },
+    "./dataModel": {
+      "types": "./src/_generated/dataModel.d.ts"
+    },
+    "./server": {
+      "types": "./src/_generated/server.d.ts",
+      "default": "./src/_generated/server.js"
+    },
+    "./auth": "./src/auth-server.ts"
+  },
+  "scripts": {
+    "dev": "convex dev",
+    "lint": "prettier --check .",
+    "typecheck": "tsgo --noEmit",
+    "format": "prettier --write ."
+  },
+  "dependencies": {
+    "convex": "^1.32.0",
+    "effect": "^3.19.18",
+    "nodemailer": "^8.0.1",
+    "better-auth": "1.4.18",
+    "@convex-dev/migrations": "^0.3.1",
+    "@beakcrypt/shared": "workspace:*",
+    "@react-email/components": "^1.0.8",
+    "@convex-dev/better-auth": "^0.10.10",
+    "@beakcrypt/transactional": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/nodemailer": "^7.0.10",
+    "@typescript/native-preview": "7.0.0-dev.20260219.1"
+  }
+}
