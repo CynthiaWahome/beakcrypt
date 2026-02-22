@@ -4,7 +4,7 @@ import { z } from "zod/v4";
 import { api } from "@beakcrypt/convex";
 import type { Response } from "~/types/response";
 import { collectErrorMessages } from "~/lib/utils";
-import { validateSlug } from "shared/reserved-slugs";
+import { validateSlug } from "@beakcrypt/shared";
 import { isFailure } from "@beakcrypt/shared";
 import type { Doc, Id } from "@beakcrypt/convex/dataModel";
 import { isAuthenticated, fetchAuthMutation } from "@beakcrypt/convex/auth";

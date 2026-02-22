@@ -7,7 +7,8 @@
     "dev": "turbo dev --ui tui",
     "typecheck": "turbo run typecheck",
     "format": "prettier --write \"**/*.{ts,tsx,md}\"",
-    "dev:app": "turbo dev --filter=@beakcrypt/web --filter=@beakcrypt/convex --ui tui"
+    "build:app": "turbo run build --filter=@beakcrypt/web",
+    "dev:app": "turbo dev --filter=@beakcrypt/web --filter=@beakcrypt/convex"
   },
   "devDependencies": {
     "turbo": "^2.8.10",

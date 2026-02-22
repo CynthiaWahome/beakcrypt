@@ -87,7 +87,7 @@ function parseEnvContent(content: string): ParsedEntry[] {
     if (!line || line.startsWith("#")) continue;
 
     const match = line.match(/^([A-Z_][A-Z0-9_]*)\s*=\s*(.*)/i);
-    if (!match) continue;
+    if (!match || !match[1] || match[2] === undefined) continue;
 
     const key = match[1].toUpperCase();
     let value = match[2];

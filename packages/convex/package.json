@@ -20,7 +20,7 @@
   "scripts": {
     "dev": "convex dev",
     "lint": "prettier --check .",
-    "typecheck": "tsgo --noEmit",
+    "typecheck": "tsgo --pretty --noEmit",
     "format": "prettier --write ."
   },
   "dependencies": {

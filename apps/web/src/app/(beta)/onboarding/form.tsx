@@ -32,7 +32,7 @@ import type { Response } from "~/types/response";
 import { Spinner } from "@beakcrypt/ui/components/spinner";
 import { Confetti } from "@beakcrypt/ui/components/confetti";
 import type { Doc, Id } from "@beakcrypt/convex/dataModel";
-import { validateSlug } from "shared/reserved-slugs";
+import { validateSlug } from "@beakcrypt/shared";
 import { createOrganization, inviteUser } from "./actions";
 import {
   useActionState,

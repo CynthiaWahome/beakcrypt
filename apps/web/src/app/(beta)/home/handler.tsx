@@ -16,7 +16,7 @@ export default async function HomeHandler() {
   if (isAuth) {
     const orgsResult = await fetchAuthQuery(api.organizations.list, {});
 
-    if (isSuccess(orgsResult) && orgsResult.data.length > 0) {
+    if (isSuccess(orgsResult) && orgsResult.data[0]) {
       redirect(`/${orgsResult.data[0].slug}`);
     } else {
       redirect("/onboarding");

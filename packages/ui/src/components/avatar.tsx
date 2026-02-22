@@ -4,7 +4,6 @@ import * as React from "react";
 import { cn } from "@beakcrypt/ui/lib/utils";
 import * as AvatarPrimitive from "@radix-ui/react-avatar";
 
-
 function Avatar({
   className,
   size = "default",

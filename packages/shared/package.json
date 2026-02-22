@@ -8,7 +8,7 @@
 		".": "./src/index.ts"
 	},
 	"scripts": {
-		"typecheck": "tsgo --noEmit",
+		"typecheck": "tsgo --pretty --noEmit",
 		"format": "prettier --write ."
 	},
 	"dependencies": {

@@ -39,7 +39,7 @@ import {
   InputGroupAddon,
   InputGroupInput,
 } from "@beakcrypt/ui/components/input-group";
-import { validateSlug } from "shared/reserved-slugs";
+import { validateSlug } from "@beakcrypt/shared";
 import { Spinner } from "@beakcrypt/ui/components/spinner";
 
 interface Props {
