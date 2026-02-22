@@ -3,12 +3,12 @@
   "version": "0.0.1",
   "private": true,
   "scripts": {
+    "lint": "eslint",
     "build": "next build",
-    "dev": "next dev",
     "start": "next start",
-    "types:check": "fumadocs-mdx && next typegen && tsgo --pretty --noEmit",
     "postinstall": "fumadocs-mdx",
-    "lint": "eslint"
+    "dev": "next dev --port $(turbo get-mfe-port)",
+    "types:check": "fumadocs-mdx && next typegen && tsgo --pretty --noEmit"
   },
   "dependencies": {
     "fumadocs-core": "16.6.4",
