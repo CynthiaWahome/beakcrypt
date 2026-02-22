@@ -15,15 +15,17 @@
         "!.next/cache/**"
       ],
       "env": [
-        "BETTER_AUTH_URL",
+        "NODE_ENV",
         "SITE_URL",
+        "CONVEX_URL",
+        "BETTER_AUTH_URL",
+        "CONVEX_SITE_URL",
+        "GITHUB_CLIENT_ID",
+        "CONVEX_DEPLOYMENT",
         "CONVEX_DEPLOY_KEY",
         "BETTER_AUTH_SECRET",
-        "CONVEX_DEPLOYMENT",
-        "GITHUB_CLIENT_ID",
-        "GITHUB_CLIENT_SECRET",
         "SKIP_ENV_VALIDATION",
-        "NODE_ENV"
+        "GITHUB_CLIENT_SECRET"
       ]
     },
     "lint": {

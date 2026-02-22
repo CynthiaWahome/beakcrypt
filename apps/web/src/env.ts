@@ -7,6 +7,8 @@ export const env = createEnv({
       .enum(["local", "test", "development", "staging", "production"])
       .default("development"),
     SITE_URL: z.url(),
+    CONVEX_URL: z.url(),
+    CONVEX_SITE_URL: z.url(),
     BETTER_AUTH_URL: z.url(),
     GITHUB_CLIENT_ID: z.string(),
     CONVEX_DEPLOYMENT: z.string(),
