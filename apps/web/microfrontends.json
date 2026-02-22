@@ -1,7 +1,8 @@
 {
   "$schema": "https://turborepo.dev/microfrontends/schema.json",
   "applications": {
-    "@beakcrypt/web": {
+    "beakcrypt-web": {
+      "packageName": "@beakcrypt/web",
       "development": {
         "local": {
           "port": 3000
@@ -9,7 +10,8 @@
         "fallback": "beakcrypt.com"
       }
     },
-    "@beakcrypt/docs": {
+    "beakcrypt-docs": {
+      "packageName": "@beakcrypt/docs",
       "development": {
         "local": {
           "port": 3001
