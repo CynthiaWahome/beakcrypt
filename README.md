@@ -109,11 +109,11 @@ beakcrypt/
 
 ### Prerequisites
 
-| Tool           | Version        | Install                             |
-| -------------- | -------------- | ----------------------------------- |
-| **Node.js**    | `v18` or later | [nodejs.org](https://nodejs.org/)   |
-| **pnpm**       | `v10` or later | `corepack enable && corepack prepare pnpm@latest --activate` |
-| **Git**        | latest         | [git-scm.com](https://git-scm.com/) |
+| Tool        | Version        | Install                                                      |
+| ----------- | -------------- | ------------------------------------------------------------ |
+| **Node.js** | `v18` or later | [nodejs.org](https://nodejs.org/)                            |
+| **pnpm**    | `v10` or later | `corepack enable && corepack prepare pnpm@latest --activate` |
+| **Git**     | latest         | [git-scm.com](https://git-scm.com/)                          |
 
 > **Note:** pnpm is the only tool you need globally. Convex CLI is run via `npx` (no global install needed). If you already have pnpm installed via `npm i -g pnpm`, that works too.
 

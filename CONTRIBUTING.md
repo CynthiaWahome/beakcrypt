@@ -28,7 +28,7 @@ This project adheres to a standard of respectful, inclusive collaboration. By pa
 
 ## 🚀 Getting Started
 
-Before you start, make sure you can run the project locally. Follow the [Getting Started](./README.md#-getting-started) section in the README to set up your development environment.
+Before you start, make sure you can run the project locally. Follow the [Getting Started](./README.md#getting-started) section in the README to set up your development environment.
 
 Once you're set up, you're ready to contribute!
 
