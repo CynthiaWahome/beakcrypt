@@ -3,7 +3,8 @@
  * for Docker builds.
  */
 import "./src/env.ts";
-import type { NextConfig } from "next";
+import type { NextConfig } from 'next';
+import { withMicrofrontends } from '@vercel/microfrontends/next/config';
 
 const nextConfig: NextConfig = {
   cacheComponents: true,
@@ -16,4 +17,4 @@ const nextConfig: NextConfig = {
   transpilePackages: ["@beakcrypt/ui"],
 };
 
-export default nextConfig;
+export default withMicrofrontends(nextConfig);
