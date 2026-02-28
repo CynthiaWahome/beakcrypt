@@ -1,0 +1,19 @@
+{
+	"name": "@beakcrypt/crypto",
+	"version": "0.0.1",
+	"module": "src/index.ts",
+	"type": "module",
+	"private": true,
+	"exports": {
+		".": "./src/index.ts"
+	},
+	"scripts": {
+		"typecheck": "tsgo --pretty --noEmit",
+		"format": "prettier --write ."
+	},
+	"devDependencies": {
+		"@beakcrypt/typescript-config": "workspace:*",
+		"@typescript/native-preview": "7.0.0-dev.20260228.1",
+		"prettier": "^3.8.1"
+	}
+}

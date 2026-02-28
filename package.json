@@ -8,7 +8,9 @@
     "typecheck": "turbo run typecheck",
     "format": "prettier --write \"**/*.{ts,tsx,md}\"",
     "build:app": "turbo run build --filter=@beakcrypt/web",
-    "dev:app": "turbo dev --filter=@beakcrypt/web --filter=@beakcrypt/convex"
+    "build:cli": "turbo run build --filter=beakcrypt",
+    "dev:app": "turbo dev --filter=@beakcrypt/web --filter=@beakcrypt/convex",
+    "dev:cli": "turbo dev --filter=beakcrypt"
   },
   "devDependencies": {
     "@beakcrypt/eslint-config": "workspace:*",

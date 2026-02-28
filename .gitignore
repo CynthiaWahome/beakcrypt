@@ -21,6 +21,9 @@ coverage
 # Vercel
 .vercel
 
+# Beakcrypt CLI
+.beakcrypt
+
 # Build Outputs
 .next/
 out/
