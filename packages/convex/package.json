@@ -24,18 +24,18 @@
     "format": "prettier --write ."
   },
   "dependencies": {
-    "convex": "^1.32.0",
-    "effect": "^3.19.18",
-    "nodemailer": "^8.0.1",
-    "better-auth": "1.4.18",
-    "@convex-dev/migrations": "^0.3.1",
     "@beakcrypt/shared": "workspace:*",
+    "@beakcrypt/transactional": "workspace:*",
+    "@convex-dev/better-auth": "^0.10.13",
+    "@convex-dev/migrations": "^0.3.1",
     "@react-email/components": "^1.0.8",
-    "@convex-dev/better-auth": "^0.10.10",
-    "@beakcrypt/transactional": "workspace:*"
+    "better-auth": "1.4.20",
+    "convex": "^1.32.0",
+    "effect": "^3.19.19",
+    "nodemailer": "^8.0.1"
   },
   "devDependencies": {
-    "@types/nodemailer": "^7.0.10",
-    "@typescript/native-preview": "7.0.0-dev.20260219.1"
+    "@types/nodemailer": "^7.0.11",
+    "@typescript/native-preview": "7.0.0-dev.20260228.1"
   }
 }

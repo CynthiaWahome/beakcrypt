@@ -17,13 +17,13 @@
     "@beakcrypt/convex": "workspace:*",
     "@beakcrypt/shared": "workspace:*",
     "@beakcrypt/ui": "workspace:*",
-    "@convex-dev/better-auth": "^0.10.10",
+    "@convex-dev/better-auth": "^0.10.13",
     "@t3-oss/env-nextjs": "^0.13.10",
     "@vercel/analytics": "^1.6.1",
     "@vercel/microfrontends": "^2.3.1",
-    "better-auth": "1.4.18",
+    "better-auth": "1.4.20",
     "convex": "^1.32.0",
-    "lucide-react": "^0.574.0",
+    "lucide-react": "^0.575.0",
     "next": "16.1.6",
     "next-themes": "^0.4.6",
     "react": "19.2.4",
@@ -33,11 +33,11 @@
   "devDependencies": {
     "@beakcrypt/eslint-config": "workspace:*",
     "@beakcrypt/typescript-config": "workspace:*",
-    "@tailwindcss/postcss": "^4.2.0",
-    "@types/node": "^25.3.0",
+    "@tailwindcss/postcss": "^4.2.1",
+    "@types/node": "^25.3.2",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
-    "@typescript/native-preview": "7.0.0-dev.20260219.1",
-    "eslint": "^10.0.0"
+    "@typescript/native-preview": "7.0.0-dev.20260228.1",
+    "eslint": "^10.0.2"
   }
 }

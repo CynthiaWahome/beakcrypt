@@ -15,8 +15,8 @@
 		"http-status": "^2.1.0"
 	},
 	"devDependencies": {
-    "prettier": "^3.7.4",
-    "@beakcrypt/typescript-config": "workspace:*",
-    "@typescript/native-preview": "7.0.0-dev.20260219.1"
+		"@beakcrypt/typescript-config": "workspace:*",
+		"@typescript/native-preview": "7.0.0-dev.20260228.1",
+		"prettier": "^3.8.1"
 	}
 }
