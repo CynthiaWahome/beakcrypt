@@ -1,10 +1,11 @@
 import ora from "ora";
+import open from "open";
 import {
   generateKeyPair,
   unwrapOrgKey as cryptoUnwrapOrgKey,
 } from "@beakcrypt/crypto";
 import { api } from "@beakcrypt/convex";
-import { query, mutation, getSessionToken } from "./convex-client";
+import { query, mutation, getSessionToken, getSiteUrl } from "./convex-client";
 import {
   getStoredKey,
   saveKey,
@@ -12,6 +13,7 @@ import {
   type StoredKeyData,
 } from "./key-store";
 import { unwrapResult } from "./errors";
+import { getProjectConfig } from "./project-config";
 import * as output from "./output";
 
 export async function ensureOrgKey(orgId: string): Promise<string> {
@@ -93,7 +95,28 @@ async function waitForApproval(
   orgId: string,
   stored: StoredKeyData,
 ): Promise<string> {
-  const spinner = ora("Waiting for admin to approve this device...").start();
+  // Try to open the browser for auto-approval (same-user, new device scenario)
+  try {
+    const projectConfig = await getProjectConfig();
+    if (projectConfig?.orgSlug && stored.keyId) {
+      const siteUrl = getSiteUrl();
+      const approveUrl = `${siteUrl}/${projectConfig.orgSlug}/sessions?approveSession=${stored.keyId}`;
+
+      output.info("Opening browser to approve this device...");
+      console.log(`${output.dim("If the browser doesn't open, visit:")}`);
+      console.log(`${output.link(approveUrl)}\n`);
+
+      try {
+        await open(approveUrl);
+      } catch {
+        // Browser failed to open — URL already printed above
+      }
+    }
+  } catch {
+    // Could not determine approval URL — fall through to polling
+  }
+
+  const spinner = ora("Waiting for device to be approved...").start();
   spinner.indent = 2;
 
   while (true) {

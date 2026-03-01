@@ -83,14 +83,29 @@ export const registerKey = mutation({
 
     if (existingMatches.length === 1) {
       const existing = existingMatches[0]!;
+
+      const patch: Partial<Doc<"memberKeys">> = {};
+
       if (existing.sessionToken !== args.sessionToken) {
-        await ctx.db.patch(existing._id, {
-          sessionToken: args.sessionToken,
-          updatedAt: Date.now(),
-        });
+        patch.sessionToken = args.sessionToken;
+      }
+
+      if (
+        status === "active" &&
+        existing.status === "pending" &&
+        args.wrappedOrgKey
+      ) {
+        patch.status = "active";
+        patch.wrappedOrgKey = args.wrappedOrgKey;
+      }
+
+      if (Object.keys(patch).length > 0) {
+        patch.updatedAt = Date.now();
+        await ctx.db.patch(existing._id, patch);
         const updated = await ctx.db.get(existing._id);
         return success(updated ?? existing);
       }
+
       return success(existing);
     }
 
