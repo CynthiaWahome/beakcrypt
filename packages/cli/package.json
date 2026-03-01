@@ -1,6 +1,6 @@
 {
 	"name": "beakcrypt",
-	"version": "0.1.0",
+	"version": "0.0.1",
 	"description": "Secure environment variable management with E2E encryption",
 	"type": "module",
 	"bin": {
@@ -10,6 +10,7 @@
 	"publishConfig": {
 		"access": "public"
 	},
+	"private": false,
 	"scripts": {
 		"build": "tsup",
 		"dev": "tsup --watch",
