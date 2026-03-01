@@ -5,8 +5,8 @@
   "scripts": {
     "start": "next start",
     "build": "next build --turbopack",
+    "dev": "next dev --port 3000 --turbopack",
     "preview": "next build --turbopack && next start",
-    "dev": "next dev --port $(turbo get-mfe-port) --turbopack",
     "lint": "eslint && echo Lint Checks successfully completed!",
     "lint:fix": "eslint --fix && echo Lint Checks successfully completed!",
     "typecheck": "next typegen && tsgo --pretty --noEmit && echo Type Checks successfuly completed!",

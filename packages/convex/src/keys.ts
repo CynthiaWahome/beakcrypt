@@ -39,7 +39,23 @@ export const registerKey = mutation({
     }
 
     const isOwner = org.ownerId === user._id;
-    const status = isOwner && args.wrappedOrgKey ? "active" : "pending";
+    const isOwnerOrAdmin =
+      isOwner || membershipResult.data.membership.role === "admin";
+
+    let status: "active" | "pending" = "pending";
+    if (isOwnerOrAdmin && args.wrappedOrgKey) {
+      const activeKeyWithOrgKey = await ctx.db
+        .query("memberKeys")
+        .withIndex("by_org_and_status", (q) =>
+          q.eq("orgId", args.orgId).eq("status", "active"),
+        )
+        .filter((q) => q.neq(q.field("wrappedOrgKey"), undefined))
+        .first();
+
+      if (!activeKeyWithOrgKey) {
+        status = "active";
+      }
+    }
 
     const existingMatches = await ctx.db
       .query("memberKeys")
@@ -66,14 +82,23 @@ export const registerKey = mutation({
     }
 
     if (existingMatches.length === 1) {
-      return success(existingMatches[0]!);
+      const existing = existingMatches[0]!;
+      if (existing.sessionToken !== args.sessionToken) {
+        await ctx.db.patch(existing._id, {
+          sessionToken: args.sessionToken,
+          updatedAt: Date.now(),
+        });
+        const updated = await ctx.db.get(existing._id);
+        return success(updated ?? existing);
+      }
+      return success(existing);
     }
 
     const keyId = await ctx.db.insert("memberKeys", {
       orgId: args.orgId,
       userId: user._id,
       publicKey: args.publicKey,
-      wrappedOrgKey: isOwner ? args.wrappedOrgKey : undefined,
+      wrappedOrgKey: status === "active" ? args.wrappedOrgKey : undefined,
       sessionToken: args.sessionToken,
       status,
       createdAt: Date.now(),

@@ -7,10 +7,13 @@ import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import type { Id } from "@beakcrypt/convex/dataModel";
 import {
   generateKeyPair,
+  generateOrgKey,
+  wrapOrgKey,
   storeKeyPair,
   getKeyPair,
   storeKeyId,
   getKeyId,
+  removeKeyId,
 } from "~/lib/crypto";
 import { authClient } from "~/lib/auth-client";
 
@@ -85,14 +88,25 @@ export function useDeviceKeySetup(orgId: Id<"organizations">) {
           if (cancelled) return;
 
           if (isFailure(result)) {
-            console.error("Failed to sync session token:", result.error);
+            console.warn(
+              "Session token sync failed (key may be stale/revoked):",
+              result.error,
+            );
+            removeKeyId(orgId);
+            attemptedRef.current = false;
+            setRetryCount((c) => c + 1);
+            return;
           }
 
           setStatus("done");
         } catch {
           if (cancelled) return;
-          console.error("Failed to sync session token");
-          setStatus("done");
+          console.warn(
+            "Session token sync threw (key record may no longer exist); clearing stale keyId",
+          );
+          removeKeyId(orgId);
+          attemptedRef.current = false;
+          setRetryCount((c) => c + 1);
         }
       })();
 
@@ -132,7 +146,7 @@ export function useDeviceKeySetup(orgId: Id<"organizations">) {
 
     (async () => {
       try {
-        const keyPair = await generateKeyPair();
+        const keyPair = existingKeyPair ?? (await generateKeyPair());
 
         const { data } = await authClient.getSession();
         const sessionToken = data?.session?.token;
@@ -144,16 +158,22 @@ export function useDeviceKeySetup(orgId: Id<"organizations">) {
           return;
         }
 
+        const orgKey = await generateOrgKey();
+        const wrappedOrgKey = await wrapOrgKey(orgKey, keyPair.publicKey);
+
         const result = await registerKeyMutation({
           orgId,
           publicKey: JSON.stringify(keyPair.publicKey),
+          wrappedOrgKey,
           sessionToken,
         });
 
         if (cancelled) return;
 
         if (isSuccess(result)) {
-          storeKeyPair(orgId, keyPair);
+          if (!existingKeyPair) {
+            storeKeyPair(orgId, keyPair);
+          }
           storeKeyId(orgId, result.data._id);
           if (result.data.status === "active") {
             setStatus("done");

@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "postinstall": "fumadocs-mdx",
-    "dev": "next dev --port $(turbo get-mfe-port)",
+    "dev": "next dev --port 3001",
     "types:check": "fumadocs-mdx && next typegen && tsgo --pretty --noEmit"
   },
   "dependencies": {

@@ -10,30 +10,30 @@ import { unwrapResult } from "../lib/errors";
 import * as output from "../lib/output";
 
 export async function pullCommand(
-	file: string | undefined,
-	opts: { org?: string; project?: string; env?: string },
+  file: string | undefined,
+  opts: { org?: string; project?: string; env?: string },
 ): Promise<void> {
-	const filePath = resolve(file ?? ".env.local");
-	const ctx = await resolveContext(opts);
+  const filePath = resolve(file ?? ".env.local");
+  const ctx = await resolveContext(opts);
 
-	const spinner = ora("Pulling secrets...").start();
+  const spinner = ora("Pulling secrets...").start();
 
-	const orgKey = await ensureOrgKey(ctx.orgId);
+  const orgKey = await ensureOrgKey(ctx.orgId);
 
-	const secretsResult = await query(api.secrets.list, {
-		environmentId: ctx.environmentId as never,
-	});
-	const secrets = unwrapResult(secretsResult);
+  const secretsResult = await query(api.secrets.list, {
+    environmentId: ctx.environmentId as never,
+  });
+  const secrets = unwrapResult(secretsResult);
 
-	const decrypted: Record<string, string> = {};
-	for (const secret of secrets) {
-		decrypted[secret.key] = await decryptSecret(secret.encryptedValue, orgKey);
-	}
+  const decrypted: Record<string, string> = {};
+  for (const secret of secrets) {
+    decrypted[secret.key] = await decryptSecret(secret.encryptedValue, orgKey);
+  }
 
-	await writeEnvFile(filePath, decrypted);
-	spinner.stop();
+  await writeEnvFile(filePath, decrypted);
+  spinner.stop();
 
-	output.success(
-		`Pulled ${secrets.length} secret${secrets.length === 1 ? "" : "s"} to ${file ?? ".env.local"}`,
-	);
+  output.success(
+    `Pulled ${secrets.length} secret${secrets.length === 1 ? "" : "s"} to ${file ?? ".env.local"}`,
+  );
 }

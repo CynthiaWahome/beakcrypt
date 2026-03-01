@@ -6,11 +6,14 @@
     "build": "turbo run build",
     "dev": "turbo dev --ui tui",
     "typecheck": "turbo run typecheck",
+    "dev:docs": "turbo dev --filter=@beakcrypt/docs",
     "format": "prettier --write \"**/*.{ts,tsx,md}\"",
-    "build:app": "turbo run build --filter=@beakcrypt/web",
     "build:cli": "turbo run build --filter=beakcrypt",
-    "dev:app": "turbo dev --filter=@beakcrypt/web --filter=@beakcrypt/convex",
-    "dev:cli": "turbo dev --filter=beakcrypt"
+    "dev:convex": "turbo dev --filter=@beakcrypt/convex",
+    "build:app": "turbo run build --filter=@beakcrypt/web",
+    "build:docs": "turbo run build --filter=@beakcrypt/docs",
+    "dev:cli": "turbo dev --filter=beakcrypt --filter=@beakcrypt/convex",
+    "dev:app": "turbo dev --filter=@beakcrypt/web --filter=@beakcrypt/convex"
   },
   "devDependencies": {
     "@beakcrypt/eslint-config": "workspace:*",
