@@ -53,22 +53,31 @@ export async function ensureOrgKey(orgId: string): Promise<string> {
 }
 
 async function registerNewDevice(orgId: string): Promise<string> {
-  const spinner = ora("Generating device keys...").start();
-  const keyPair = await generateKeyPair();
-
   const sessionToken = getSessionToken();
   if (!sessionToken) throw new Error("Not logged in");
 
-  spinner.text = "Registering device with organization...";
+  const spinner = ora("Generating device keys...").start();
 
-  const result = await mutation(api.keys.registerKey, {
-    orgId: orgId as never,
-    publicKey: JSON.stringify(keyPair.publicKey),
-    sessionToken,
-  });
+  let keyPair: Awaited<ReturnType<typeof generateKeyPair>>;
+  let keyRecord: ReturnType<typeof unwrapResult<any>>;
 
-  const keyRecord = unwrapResult(result);
-  spinner.stop();
+  try {
+    keyPair = await generateKeyPair();
+
+    spinner.text = "Registering device with organization...";
+
+    const result = await mutation(api.keys.registerKey, {
+      orgId: orgId as never,
+      publicKey: JSON.stringify(keyPair.publicKey),
+      sessionToken,
+    });
+
+    keyRecord = unwrapResult(result);
+    spinner.stop();
+  } catch (err) {
+    spinner.fail("Device registration failed.");
+    throw err;
+  }
 
   const stored: StoredKeyData = {
     publicKey: keyPair.publicKey,
