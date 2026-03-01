@@ -1,5 +1,5 @@
 {
-	"name": "@beakcrypt/shared",
+	"name": "@beakcrypt/crypto",
 	"version": "0.0.1",
 	"module": "src/index.ts",
 	"type": "module",
@@ -10,9 +10,6 @@
 	"scripts": {
 		"typecheck": "tsgo --pretty --noEmit",
 		"format": "prettier --write ."
-	},
-	"dependencies": {
-		"http-status": "^2.1.0"
 	},
 	"devDependencies": {
 		"@beakcrypt/typescript-config": "workspace:*",
