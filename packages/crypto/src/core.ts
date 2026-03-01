@@ -1,0 +1,163 @@
+export interface ExportedKeyPair {
+  publicKey: JsonWebKey;
+  privateKey: JsonWebKey;
+}
+
+export const RSA_ALGORITHM: RsaHashedKeyGenParams = {
+  name: "RSA-OAEP",
+  modulusLength: 4096,
+  publicExponent: new Uint8Array([1, 0, 1]),
+  hash: "SHA-256",
+};
+
+export const AES_ALGORITHM = "AES-GCM";
+export const AES_KEY_LENGTH = 256;
+export const IV_BYTE_LENGTH = 12;
+
+export async function generateKeyPair(): Promise<ExportedKeyPair> {
+  const keyPair = await crypto.subtle.generateKey(RSA_ALGORITHM, true, [
+    "wrapKey",
+    "unwrapKey",
+  ]);
+
+  const [publicKey, privateKey] = await Promise.all([
+    crypto.subtle.exportKey("jwk", keyPair.publicKey),
+    crypto.subtle.exportKey("jwk", keyPair.privateKey),
+  ]);
+
+  return { publicKey, privateKey };
+}
+
+export async function generateOrgKey(): Promise<string> {
+  const key = await crypto.subtle.generateKey(
+    { name: AES_ALGORITHM, length: AES_KEY_LENGTH },
+    true,
+    ["encrypt", "decrypt"],
+  );
+
+  const raw = await crypto.subtle.exportKey("raw", key);
+  return bufferToBase64(raw);
+}
+
+export async function wrapOrgKey(
+  orgKeyBase64: string,
+  publicKeyJwk: JsonWebKey,
+): Promise<string> {
+  const publicKey = await crypto.subtle.importKey(
+    "jwk",
+    publicKeyJwk,
+    RSA_ALGORITHM,
+    false,
+    ["wrapKey"],
+  );
+
+  const orgKey = await crypto.subtle.importKey(
+    "raw",
+    base64ToBuffer(orgKeyBase64),
+    { name: AES_ALGORITHM, length: AES_KEY_LENGTH },
+    true,
+    ["encrypt", "decrypt"],
+  );
+
+  const wrapped = await crypto.subtle.wrapKey("raw", orgKey, publicKey, {
+    name: "RSA-OAEP",
+  });
+
+  return bufferToBase64(wrapped);
+}
+
+export async function unwrapOrgKey(
+  wrappedKeyBase64: string,
+  privateKeyJwk: JsonWebKey,
+): Promise<string> {
+  const privateKey = await crypto.subtle.importKey(
+    "jwk",
+    privateKeyJwk,
+    RSA_ALGORITHM,
+    false,
+    ["unwrapKey"],
+  );
+
+  const orgKey = await crypto.subtle.unwrapKey(
+    "raw",
+    base64ToBuffer(wrappedKeyBase64),
+    privateKey,
+    { name: "RSA-OAEP" },
+    { name: AES_ALGORITHM, length: AES_KEY_LENGTH },
+    true,
+    ["encrypt", "decrypt"],
+  );
+
+  const raw = await crypto.subtle.exportKey("raw", orgKey);
+  return bufferToBase64(raw);
+}
+
+export async function encryptSecret(
+  plaintext: string,
+  orgKeyBase64: string,
+): Promise<string> {
+  const key = await crypto.subtle.importKey(
+    "raw",
+    base64ToBuffer(orgKeyBase64),
+    { name: AES_ALGORITHM },
+    false,
+    ["encrypt"],
+  );
+
+  const iv = crypto.getRandomValues(new Uint8Array(IV_BYTE_LENGTH));
+  const encoded = new TextEncoder().encode(plaintext);
+
+  const ciphertext = await crypto.subtle.encrypt(
+    { name: AES_ALGORITHM, iv },
+    key,
+    encoded,
+  );
+
+  return `${bufferToBase64(iv.buffer)}:${bufferToBase64(ciphertext)}`;
+}
+
+export async function decryptSecret(
+  encryptedValue: string,
+  orgKeyBase64: string,
+): Promise<string> {
+  const [ivBase64, ciphertextBase64] = encryptedValue.split(":");
+  if (!ivBase64 || !ciphertextBase64) {
+    throw new Error(
+      "Invalid encrypted value format — expected 'iv:ciphertext'",
+    );
+  }
+
+  const key = await crypto.subtle.importKey(
+    "raw",
+    base64ToBuffer(orgKeyBase64),
+    { name: AES_ALGORITHM },
+    false,
+    ["decrypt"],
+  );
+
+  const decrypted = await crypto.subtle.decrypt(
+    { name: AES_ALGORITHM, iv: base64ToBuffer(ivBase64) },
+    key,
+    base64ToBuffer(ciphertextBase64),
+  );
+
+  return new TextDecoder().decode(decrypted);
+}
+
+export function bufferToBase64(buffer: ArrayBuffer): string {
+  const bytes = new Uint8Array(buffer);
+  let binary = "";
+  for (let i = 0; i < bytes.byteLength; i++) {
+    binary += String.fromCharCode(bytes[i]!);
+  }
+  return btoa(binary);
+}
+
+export function base64ToBuffer(base64: string): ArrayBuffer {
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return bytes.buffer;
+}
